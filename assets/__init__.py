@@ -1,0 +1,1 @@
+# ANIMA assets package
