@@ -27,6 +27,7 @@
 - **Double-Layer Decoupled Markov Model**: A toggleable generation mode that subdivides bars into half/quarter-note rhythmic grids and performs a second-layer Markov random walk to assign harmonically coherent chords at each subdivision — producing varied, emotionally catchy progressions that go far beyond monotonous whole-note loops.
 - **Emotion Fusion Studio**: Blend any combination of emotional style families to create complex, customized tension arcs and hybrid chord progressions.
 - **MIDI CC Humanization**: Automated MIDI CC #11 (Expression) and CC #1 (Modulation) envelope curves on all tracks for realistic sampler response.
+- **Spanish Guitar Composer** *(Option 7)*: 4-track nylon guitar engine built from direct MIDI sample analysis. Bajo, Rasgueado arpeggios, Alzapua counter-melody, and Picado lead runs across 7 moods and 7 Spanish scales (Harmonic Minor, Phrygian Dominant, Phrygian, Dorian, Natural Minor, Ionian, Mixolydian).
 
 ---
 
@@ -103,6 +104,7 @@ When you run `anima-midi-production-engine.py`, the following options are availa
 | `4` | **120-Bar Epic Arranger + Choir** | Expand a 4-bar MIDI into a full cinematic 120-bar song arc with SATB choir |
 | `5` | **Melodic Overlayer** | Analyze any MIDI file and add a 7-track string/piano quartet overlay |
 | `6` | **DAW Routing & MIDI Channel Manual** | View track/channel assignments for sampler configuration |
+| `7` | **Spanish Guitar Composer** | Bajo · Rasgueado · Alzapua · Picado — 4-track nylon guitar loops across 7 Spanish moods |
 | `T` | **Toggle Generation Mode** | Switch between **Simple** (whole notes) and **Double-Layer Decoupled** (subdivided Markov) |
 | `0` | **Exit** | — |
 
@@ -149,6 +151,16 @@ All melody generators, counter-melody, cello, viola, and piano parts are **subdi
 ## 🎚️ DAW Instrument Routing Table
 
 All engines produce standard multi-track MIDI files to `midi_files/`. Assign channels to your sampler patches as follows:
+
+### Spanish Guitar Composer Output (4 Tracks — GM 24 Nylon Guitar)
+| Track | Channel | Register | Role | Technique |
+| :---: | :---: | :--- | :--- | :--- |
+| Track 0 | Ch 0 | E2–F#3 (MIDI 40–54) | Bajo — Bass | Root + 5th anchor plucks |
+| Track 1 | Ch 1 | G2–F#4 (MIDI 43–66) | Rasgueado — Chord Arpeggio | Single-note ascending/descending chord outlines |
+| Track 2 | Ch 2 | G3–C5 (MIDI 55–72) | Alzapua — Counter-Melody | Sparse inner voice, stepwise voice-led |
+| Track 3 | Ch 3 | D4–A5 (MIDI 62–81) | Picado — Lead Melody | 16th-note ornamental runs + sustained phrases |
+
+> **DAW tip**: Route all 4 channels to the **same nylon guitar patch** (e.g. Ample Guitar N, Orange Tree Samples Evolution Nylon), panned slightly centre. Use velocity sensitivity and round-robin articulations for realism.
 
 ### VVC String Quartet Output (7 Tracks)
 | Track | Channel | GM Program | Target Instrument / Patch | Recommended Libraries |

@@ -35,7 +35,10 @@ try:
     
     print("  [LOADING] Initializing VVC Orchestration Engine...")
     vvc_engine = _load_module('VVC', 'VVC.py')
-    
+
+    print("  [LOADING] Initializing Spanish Guitar Engine...")
+    sg_engine = _load_module('spanish_guitar', 'spanish_guitar.py')
+
     print("  [SUCCESS] All ANIMA sub-engines loaded successfully.\n")
 except Exception as e:
     print(f"\n  [FATAL ERROR] Failed to load engines: {e}")
@@ -88,6 +91,10 @@ def main():
 
      6  →  DAW Routing & MIDI Channel Manual
            Detailed information on Spitfire/EastWest DAW track configurations.
+
+     7  →  Spanish Guitar Composer
+           Bajo · Rasgueado · Alzapua · Picado — 4-track nylon guitar loops.
+           Moods: Duende Oscuro, Alma Flamenca, Noche Española, Serenata + more.
   ____________________________________________________________
      T  →  Toggle Generation Mode [Active: {generation_mode.upper()}]
            Switches between Simple Mode and Double-Layer Decoupled
@@ -100,7 +107,8 @@ def main():
         # Propagate the active generation mode to all loaded modules
         minor_engine.GENERATION_MODE = generation_mode
         major_engine.GENERATION_MODE = generation_mode
-        vvc_engine.GENERATION_MODE = generation_mode
+        vvc_engine.GENERATION_MODE   = generation_mode
+        sg_engine.GENERATION_MODE    = generation_mode
 
         if choice == '0':
             print("  Exiting ANIMA Workstation. Have a highly creative day!\n")
@@ -167,8 +175,16 @@ def main():
                 print(f"  [ERROR] Failed to display guide: {e}")
             input("  Press [Enter] to return to Main Menu...")
 
+        elif choice == '7':
+            print("  Opening Spanish Guitar Composer...")
+            time.sleep(0.3)
+            try:
+                sg_engine.main(out_dir)
+            except Exception as e:
+                print(f"  [ERROR] Spanish Guitar Engine failure: {e}")
+
         else:
-            print("  [!] Invalid choice. Enter 1-6, T, or 0.\n")
+            print("  [!] Invalid choice. Enter 1-7, T, or 0.\n")
 
         _div()
         time.sleep(0.1)
