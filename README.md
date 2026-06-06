@@ -18,16 +18,17 @@
 
 ## 🌟 Key Features
 
-- **Unified Workstation**: One entry point (`anima-midi-production-engine.py`) boots all three composition engines — Minor Scale, Major Scale, and VVC String Orchestrator — dynamically.
+- **Unified Workstation**: One entry point (`anima-midi-production-engine.py`) boots all composition engines dynamically from one menu.
 - **Minor Scale Engine**: 5 emotional families (Sorrowful, Romantic, Yearning, Hopeful, Tragic/Epic), Emotion Fusion Studio for blended moods, Surprise generation, and a Melodic Overlayer.
 - **Major Scale Engine**: 4 emotional families (Uplifting/Joyful, Majestic/Heroic, Serene/Ambient, Nostalgic/Bittersweet), Emotion Fusion Studio, Surprise blends, and Melodic Overlayer.
 - **VVC String Quartet Engine**: Full 7-track orchestral compositions — String Pad, Violin I, Violin II, Viola, Cello, Unified Ostinato, and Piano Melody. Mood-driven voice leading and humanized CC expression curves.
 - **Melodic Overlayer**: Feed any `.mid` file into either chord generator and the suite auto-detects the key/tempo, then composites a lush 7-track string/piano quartet overlay on top.
 - **120-Bar Epic Arranger + Choir**: Expand a user-edited 4-bar MIDI source into a full 120-bar cinematic arrangement with dynamic section-aware SATB choir (channels 7–10) covering Intro → Build-up → Main Theme → Development → Climax → Final Chorus → Outro.
-- **Double-Layer Decoupled Markov Model**: A toggleable generation mode that subdivides bars into half/quarter-note rhythmic grids and performs a second-layer Markov random walk to assign harmonically coherent chords at each subdivision — producing varied, emotionally catchy progressions that go far beyond monotonous whole-note loops.
+- **Modern Cinematic & Ethereal Fantasy Trailer Engine** *(Option 8)*: Professional stem-based cinematic MIDI with a DFS-backtracked melody, 4-part SATB voice-leading choir, sub bass, staccato ostinato, drone, and mood-specific instruments across 3 moods and 12 minor keys.
+- **Double-Layer Decoupled Markov Model**: A toggleable generation mode that subdivides bars into half/quarter-note rhythmic grids and performs a second-layer Markov random walk to assign harmonically coherent chords at each subdivision.
 - **Emotion Fusion Studio**: Blend any combination of emotional style families to create complex, customized tension arcs and hybrid chord progressions.
 - **MIDI CC Humanization**: Automated MIDI CC #11 (Expression) and CC #1 (Modulation) envelope curves on all tracks for realistic sampler response.
-- **Spanish Guitar Composer** *(Option 7)*: 4-track nylon guitar engine built from direct MIDI sample analysis. Bajo, Rasgueado arpeggios, Alzapua counter-melody, and Picado lead runs across 7 moods and 7 Spanish scales (Harmonic Minor, Phrygian Dominant, Phrygian, Dorian, Natural Minor, Ionian, Mixolydian).
+- **Spanish Guitar Composer** *(Option 7)*: 4-track nylon guitar engine built from direct MIDI sample analysis. Bajo, Rasgueado arpeggios, Alzapua counter-melody, and Picado lead runs across 7 moods and 7 Spanish scales.
 
 ---
 
@@ -43,6 +44,7 @@ progressions/
     ├── minor-chord-generatory.py     ← Minor Scale Engine (Aeolian, Phrygian, Dorian, etc.)
     ├── major-chord-generatory.py     ← Major Scale Engine (Ionian, Lydian, Mixolydian, etc.)
     ├── VVC.py                        ← VVC String Orchestration Engine (Quartet + Choir + Arranger)
+    ├── cinematic.py                  ← Cinematic Trailer Engine (Option 8) — SATB Choir, Melody, Brass
     ├── specialist_styles.py          ← Shared orchestration backend (CC curves, percussion grids)
     └── __init__.py
 ```
@@ -80,14 +82,10 @@ py anima-midi-production-engine.py
 
 Or launch individual engines directly:
 ```powershell
-# Minor Scale Engine only
 py assets/minor-chord-generatory.py
-
-# Major Scale Engine only
 py assets/major-chord-generatory.py
-
-# VVC String Orchestrator only
 py assets/VVC.py
+py assets/cinematic.py
 ```
 
 ---
@@ -105,8 +103,130 @@ When you run `anima-midi-production-engine.py`, the following options are availa
 | `5` | **Melodic Overlayer** | Analyze any MIDI file and add a 7-track string/piano quartet overlay |
 | `6` | **DAW Routing & MIDI Channel Manual** | View track/channel assignments for sampler configuration |
 | `7` | **Spanish Guitar Composer** | Bajo · Rasgueado · Alzapua · Picado — 4-track nylon guitar loops across 7 Spanish moods |
+| `8` | **Modern Cinematic Trailer Engine** | Minor *or* Major tonality — Ethereal Gothic · Epic Heroic · Dark Stealth · Triumphant Ascent · Celestial Wonder · Golden Pastoral — multi-stem MIDI with SATB choir and procedural melody |
 | `T` | **Toggle Generation Mode** | Switch between **Simple** (whole notes) and **Double-Layer Decoupled** (subdivided Markov) |
 | `0` | **Exit** | — |
+
+---
+
+## 🎬 Option 8 — Modern Cinematic & Ethereal Fantasy Trailer Engine
+
+A dedicated cinematic MIDI composition engine (`assets/cinematic.py`) that generates professional, stem-ready 4-bar arrangements in one of three dramatic moods.
+
+### Moods
+
+| # | Mood | Instruments | Character |
+| :---: | :--- | :--- | :--- |
+| `1` | **Ethereal Gothic Fantasy** | SATB Choir × 4, Harp, Piano, Sub Bass, Drone, Staccato Strings, Melody | Touching, celestial, dark fantasy |
+| `2` | **Epic Heroic Action** | SATB Choir × 4, Heavy Brass, Sub Bass, Drone, Staccato Strings, Melody | Intense, cinematic, battle-ready |
+| `3` | **Dark Assassin Stealth** | Nylon Guitars, Sparse Piano, Sub Bass, Drone, Staccato Strings, Melody | Brooding, mysterious, tension-driven |
+
+### Foundation Tracks (All Moods)
+
+| Track | GM Program | Role |
+| :--- | :---: | :--- |
+| Sub Bass | 43 (Contrabass) | Deep root anchor plucks on the beat |
+| High Drone | 48 (String Ensemble) | Sustained atmospheric pad |
+| Staccato Strings | 48 | Rhythmic staccato ostinato off-beats |
+| Melody | 40 (Violin) | Procedural 4-bar motif — singable, unique every run |
+
+### SATB Choir Engine (Mood 1 & 2)
+
+The choir uses a dynamic **nearest-pitch voice-leading algorithm** — each voice resolves to the closest chord tone of the next bar, minimizing interval size to create smooth, human-sounding progressions. Notes are humanized with random attack stagger (0–18 ticks) and breath-release space (35–80 ticks before bar end).
+
+| Track | GM Program | MIDI Range | Role |
+| :--- | :---: | :---: | :--- |
+| Choir - Bass | 52 (Choir Aahs) | 43–55 (G2–G3) | Root foundation, always locks to chord root |
+| Choir - Tenor | 52 | 53–65 (F3–F4) | Smooth voice-led chord tones |
+| Choir - Alto | 52 | 59–71 (B3–B4) | Smooth voice-led chord tones |
+| Choir - Soprano | 52 | 65–77 (F4–F5) | Smooth voice-led chord tones |
+
+### Major Moods (new)
+
+| # | Mood | Instruments | Character | Tracks |
+| :---: | :--- | :--- | :--- | :---: |
+| `1` | **Triumphant Ascent** | Brass Fanfare, SATB Choir × 4, Piano, Sub Bass, Drone, Staccato Strings, Melody | Heroic, victorious, soaring | 10 |
+| `2` | **Celestial Wonder** | Celesta Arps, SATB Choir × 4, Sub Bass, Drone, Staccato Strings, Melody | Floating, Lydian, magical | 9 |
+| `3` | **Golden Pastoral** | Pastoral Harp, Woodwind Lead, Sub Bass, Drone, Staccato Strings, Melody | Warm, Mixolydian, anthemic | 6 |
+
+### Major Scales Used
+
+| Scale | Degrees | Film Character |
+| :--- | :--- | :--- |
+| **Ionian** (Natural Major) | `0 2 4 5 7 9 11` | Triumphant, resolved, victory fanfares |
+| **Lydian** | `0 2 4 6 7 9 11` | Floating wonder — John Williams, Interstellar |
+| **Mixolydian** | `0 2 4 5 7 9 10` | Anthemic rock-epic — Game of Thrones style |
+| **Melodic Major** | `0 2 4 5 7 8 10` | Bittersweet, nostalgic, poignant endings |
+
+### Major Chord Pool (14 chords)
+
+Includes Lydian `II`, borrowed `bVII`, `bVI`, `bIII`, minor `iv` (Melodic Major), and all diatonic major chords.
+
+### Major Chord Progressions Pool (24 progressions)
+
+| Category | Sample Progressions |
+| :--- | :--- |
+| Triumphant / Heroic | `I – bVII – IV – I`, `I – V – vi – IV`, `I – bIII – bVII – IV` |
+| Lydian Wonder | `I – II – I – V`, `Imaj7 – II – IVmaj7 – I`, `I – II – V – I` |
+| Mixolydian Anthem | `I – bVII – I – IV`, `I – IV – bVII – I`, `I – V – bVII – IV` |
+| Bittersweet / Nostalgic | `I – vi – IV – V`, `I – iv – I – V`, `I – bVI – bIII – bVII` |
+
+### New Major-Specific Generators
+
+| Generator | GM Program | Role |
+| :--- | :---: | :--- |
+| `generate_brass_fanfare` | 61 (Brass) | Dotted-quarter + 8th fanfare hits on root/3rd/5th, beats 1 & 3 |
+| `generate_celesta_arpeggios` | 8 (Celesta) | Soft ascending 16th-note shimmer in MIDI 72–90 |
+| `generate_woodwind_lead` | 73 (Flute) | Stepwise lyrical line in MIDI 65–79, two notes per bar |
+
+The SATB choir, sub bass, drone, staccato ostinato, and DFS melody engine are **fully reused** — the major chord tones (`[0,4,7]` etc.) automatically produce a brighter harmonic output without any separate code.
+
+### Updated Filename Format
+
+The tonality (`Minor` or `Major`) is now encoded in every filename:
+
+```
+Radiant_Ascent__Cinematic_Triumphant_Ascent__C_Major__120BPM__I-bVII-IV-I.mid
+Spectral_Bastion__Cinematic_Ethereal_Gothic_Fantasy__D_Minor__110BPM__i-III-VI-VII.mid
+```
+
+
+The melody is generated by a **DFS backtracking algorithm** that enforces cinematic phrasing rules on every run:
+
+- **A-A-B-A' phrase structure** across 4 bars (13 notes total)
+- **Exactly one defining leap** — Perfect 4th, 5th, minor 6th, or octave (5, 7, 8, or 12 semitones)
+- **Stepwise motion everywhere else** — all other intervals ≤ 4 semitones
+- **Single unique climax note** placed in Bar 3 or Bar 4
+- **Range constraint** — entire melody stays within one octave
+- **Chord-tone density** — at least 9 of 13 notes are chord tones of the active bar
+- **Candidate shuffling** ensures a different melody on every generation
+
+### Chord Progressions Pool (24 progressions)
+
+The engine randomly selects from 24 progressions grouped into four style categories:
+
+| Category | Examples | Feel |
+| :--- | :--- | :--- |
+| Epic / Touching | `i – III – VI – VII`, `i – VI – III – VII` | Orchestral, emotional |
+| Heroic / Action | `VI – VII – i – v`, `VI – III – iv – i` | Driving, powerful |
+| Ethereal / Gothic | `i – VII – VI – V`, `i – iv – III – VII` | Floating, dark, haunting |
+| Dorian & Phrygian | `i – IV – VI – VII`, `i – II – VI – VII` | Exotic, soaring, ancient |
+
+### Supported Minor Keys
+
+All 12 chromatic minor keys are supported. The CLI lists all available options and auto-resolves enharmonic equivalents:
+
+```
+A  Bb  B  C  C#  D  Eb  E  F  F#  G  G#
+```
+
+| Input | Resolves to |
+| :--- | :---: |
+| `Db` or `db` | `C#` |
+| `D#` | `Eb` |
+| `Gb` or `gb` | `F#` |
+| `Ab` | `G#` |
+| `A#` | `Bb` |
 
 ---
 
@@ -152,6 +272,43 @@ All melody generators, counter-melody, cello, viola, and piano parts are **subdi
 
 All engines produce standard multi-track MIDI files to `midi_files/`. Assign channels to your sampler patches as follows:
 
+### Option 8 — Cinematic Engine (Mood 1: Ethereal Gothic Fantasy — 10 Tracks)
+| Track | Role | GM Program | Recommended Patch |
+| :---: | :--- | :---: | :--- |
+| Sub Bass | Deep root anchor | 43 | Kontakt Contrabass, Spitfire LABS Strings |
+| High Drone | Atmospheric pad | 48 | EastWest Hollywood Strings Sustain |
+| Staccato Strings | Rhythmic ostinato | 48 | Spitfire Chamber Strings Staccato |
+| Melody | Procedural violin motif | 40 | Spitfire Symphonic Strings Violin Solo |
+| Choir - Bass | SATB bass line | 52 | EastWest Symphonic Choirs Bass |
+| Choir - Tenor | SATB tenor | 52 | EastWest Symphonic Choirs Tenor |
+| Choir - Alto | SATB alto | 52 | Spitfire Albion Tundra Alto |
+| Choir - Soprano | SATB soprano | 52 | Spitfire Albion Tundra Soprano |
+| Harp / Nylon Arps | Arpeggio decoration | 46 | Native Instruments Harp, Ample Guitar N |
+| Piano Melody | High register melody | 0 | Native Instruments The Grandeur |
+
+### Option 8 — Cinematic Engine (Mood 2: Epic Heroic Action — 8 Tracks)
+| Track | Role | GM Program | Recommended Patch |
+| :---: | :--- | :---: | :--- |
+| Sub Bass | Deep root anchor | 43 | Kontakt Contrabass |
+| High Drone | Atmospheric pad | 48 | Spitfire Albion ONE Pad |
+| Staccato Strings | Rhythmic ostinato | 48 | EastWest Hollywood Strings Staccato |
+| Melody | Procedural violin motif | 40 | Spitfire Symphonic Strings Violin Solo |
+| Heavy Brass | Epic unison brass | 61 | Spitfire BBC Symphony Brass |
+| Choir - Bass | SATB bass line | 52 | EastWest Symphonic Choirs Bass |
+| Choir - Tenor | SATB tenor | 52 | EastWest Symphonic Choirs Tenor |
+| Choir - Alto | SATB alto | 52 | Spitfire Albion Tundra Alto |
+| Choir - Soprano | SATB soprano | 52 | Spitfire Albion Tundra Soprano |
+
+### Option 8 — Cinematic Engine (Mood 3: Dark Assassin Stealth — 6 Tracks)
+| Track | Role | GM Program | Recommended Patch |
+| :---: | :--- | :---: | :--- |
+| Sub Bass | Deep root anchor | 43 | Kontakt Contrabass |
+| High Drone | Atmospheric pad | 48 | Spitfire LABS Frozen Strings |
+| Staccato Strings | Rhythmic ostinato | 48 | EastWest Hollywood Strings Staccato |
+| Melody | Procedural violin motif | 40 | Cinesamples CineStrings Solo Violin |
+| Nylon Guitars | Harp-style arpeggios | 24 | Ample Guitar N, Orange Tree Nylon |
+| Dark Piano | Sparse high-register touches | 0 | Keyscape, The Grandeur |
+
 ### Spanish Guitar Composer Output (4 Tracks — GM 24 Nylon Guitar)
 | Track | Channel | Register | Role | Technique |
 | :---: | :---: | :--- | :--- | :--- |
@@ -160,7 +317,7 @@ All engines produce standard multi-track MIDI files to `midi_files/`. Assign cha
 | Track 2 | Ch 2 | G3–C5 (MIDI 55–72) | Alzapua — Counter-Melody | Sparse inner voice, stepwise voice-led |
 | Track 3 | Ch 3 | D4–A5 (MIDI 62–81) | Picado — Lead Melody | 16th-note ornamental runs + sustained phrases |
 
-> **DAW tip**: Route all 4 channels to the **same nylon guitar patch** (e.g. Ample Guitar N, Orange Tree Samples Evolution Nylon), panned slightly centre. Use velocity sensitivity and round-robin articulations for realism.
+> **DAW tip**: Route all 4 channels to the **same nylon guitar patch** (e.g. Ample Guitar N, Orange Tree Evolution Nylon), panned slightly centre.
 
 ### VVC String Quartet Output (7 Tracks)
 | Track | Channel | GM Program | Target Instrument / Patch | Recommended Libraries |
@@ -194,8 +351,20 @@ All engines produce standard multi-track MIDI files to `midi_files/`. Assign cha
 
 ## 📁 Output File Naming Convention
 
-Generated MIDI files are automatically saved to `midi_files/` with descriptive names encoding key musical parameters:
+Generated MIDI files are automatically saved to `midi_files/` with descriptive names encoding key musical parameters.
 
+### Cinematic Engine (Option 8)
+Files are prefixed with a procedurally generated cinematic project title drawn from pools of **27 adjectives × 25 nouns (675 unique combinations)**:
+
+```
+Spectral_Bastion__Cinematic_Epic_Heroic_Action__D_Minor__110BPM__VI-VII-i-v.mid
+Midnight_Covenant__Cinematic_Ethereal_Gothic_Fantasy__F#_Minor__120BPM__i-VII-VI-V.mid
+Crimson_Valhalla__Cinematic_Dark_Assassin_Stealth__G#_Minor__100BPM__VI-III-iv-i.mid
+```
+
+**Format**: `{Project_Title}__Cinematic_{Mood}__{Key}_Minor__{BPM}BPM__{Progression}.mid`
+
+### Other Engines
 ```
 VVC_String_Quartet_4Bar_Sorrowful__Dark_Lament__A_Minor__90BPM.mid
 Mood__Uplifting_Joyful_Bright__Pop-Punk_Anthem__C_Major.mid
@@ -213,3 +382,5 @@ If a filename already exists, a `_v2`, `_v3`, etc. suffix is appended automatica
 - **Module loading**: The master workstation uses `importlib.util` to dynamically load each sub-engine from `assets/`, injecting the `GENERATION_MODE` state at runtime.
 - **Ticks per beat**: All engines use `tpb = 480` for high DAW compatibility.
 - **No static templates**: All chord voicings, rhythms, and melodies are procedurally generated on every run — no two outputs are identical.
+- **Cinematic Melody DFS**: The melody generator uses a Depth-First Search backtracking algorithm with 6 fallback levels and candidate shuffling to guarantee a valid, singable, unique motif every generation.
+- **SATB Voice Leading**: The cinematic choir uses nearest-pitch resolution — each voice selects the chord tone requiring the smallest interval move from its previous pitch, replicating natural human vocal behaviour.
