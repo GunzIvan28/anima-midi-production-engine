@@ -387,23 +387,35 @@ def _div(c='-', w=62): print(c * w)
 
 def _select_mood():
     print("""
-  Select a mood:
+  Select Scale Family:
   ____________________________________________________________
-    A  →  Duende Oscuro      Dark passion, grief            [Harmonic Min]
-    B  →  Alma Flamenca      Fire, drama, Flamenco core     [Phrygian Dom]
-    C  →  Noche Española     Modal night, Spanish mystery   [Phrygian]
-    D  →  Serenata           Gentle longing, tender night   [Natural Min]
-    E  →  Romance Dorian     Soulful warmth, modal glow     [Dorian]
-    F  →  Alma Alegre        Bright joy, festive major      [Ionian]
-    G  →  Pasión Mayor       Warm major with Spanish edge   [Mixolydian]
+    1  →  Minor Scales (Harmonic Min, Phrygian Dom, Phrygian, etc.)
+    2  →  Major Scales (Ionian, Mixolydian)
   ____________________________________________________________""")
     while True:
+        family_choice = input("  --> ").strip()
+        if family_choice in ('1', '2'):
+            is_minor = (family_choice == '1')
+            break
+        print("  Enter 1 or 2.")
+
+    # Filter moods by selected family
+    filtered_moods = {k: v for k, v in MOOD_PRESETS.items() if v['is_minor'] == is_minor}
+    
+    print(f"\n  Select a {'Minor' if is_minor else 'Major'} mood:")
+    print("  ____________________________________________________________")
+    for k, m in sorted(filtered_moods.items()):
+        scale_disp = m['scale'].replace('_', ' ').title()
+        print(f"    {k}  →  {m['name']:<18} {m['desc']:<30} [{scale_disp}]")
+    print("  ____________________________________________________________")
+
+    while True:
         choice = input("  --> ").strip().upper()
-        if choice in MOOD_PRESETS:
-            m = MOOD_PRESETS[choice]
+        if choice in filtered_moods:
+            m = filtered_moods[choice]
             print(f"  [{m['name']}] — {m['desc']}")
             return m
-        print("  Enter A-G.")
+        print(f"  Enter one of: {', '.join(sorted(filtered_moods.keys()))}")
 
 def _select_key():
     print(f"\n  Select root key: {' · '.join(ROOTS.keys())}")

@@ -486,6 +486,29 @@ RHYTHM_PIANO = [
 
 # ── HELPER FUNCTIONS (from minor/major generators) ─────────────────────────
 
+def sample_from_scores(candidates, scores, temperature=0.5):
+    """Softmax weighted sampling with scaling for melodic decision making."""
+    if not candidates:
+        return 76
+    import math
+    scaled_scores = [s / 10.0 for s in scores]
+    max_s = max(scaled_scores)
+    adj_scores = [s - max_s for s in scaled_scores]
+    exp_w = [math.exp(s / max(0.05, temperature)) for s in adj_scores]
+    sum_w = sum(exp_w)
+    if sum_w < 1e-6:
+        import random
+        return random.choice(candidates)
+    import random
+    r = random.uniform(0, sum_w)
+    acc = 0.0
+    for c, w in zip(candidates, exp_w):
+        acc += w
+        if r <= acc:
+            return c
+    return candidates[-1]
+
+
 def w_rhythm(pool, max_dur, t_bias=0.5):
     """Select a duration from weighted pool, limited by max_dur."""
     fit = [p for p in pool if p[0] <= max_dur + 0.01]
@@ -1326,72 +1349,146 @@ def _get_pitch_for_step(chord, step_idx, total_steps, high_base=67):
 
 def generate_ostinato(chords, bpm, tension):
     """
-    Single unified ostinato generator (GM 49, Ch 5).
-    Steps labeled 'low' get a root/fifth punch in the C3-C4 range.
-    Steps labeled 'high' get an arpeggiated chord tone in the G4-D6 range.
-    The pattern continuously alternates between the two, creating a rich
-    interwoven ostinato that both shimmers over the harmony and anchors the rhythm.
+    Advanced cinematic ostinato generator following the user's specific guidelines:
+    1. Adapts Rhythmic Density to BPM (Slow, Medium, Fast, Very Fast).
+    2. Constructs Ostinatos from Reusable Rhythmic Cells (Cell A, Cell B, Cell C, Cell D).
+    3. Prioritizes Chord Tones (Root, Fifth, Octave, Third, Seventh) in a tight, narrow register (A3-E5).
+    4. Eliminates mechanical repetition with 4-bar phrase structure and variations.
+    5. Applies dynamic velocity/accent patterns.
     """
-    pool = _select_ostinato_pool(bpm, tension)
-    pattern_names = list(pool.keys())
-    
-    # Tension-based pattern selection
-    if tension < 0.4:
-        preferred = [n for n in pattern_names if n in ('sweep_and_anchor', 'broad_lift', 'lilt_and_pedal')]
-        chosen = random.choice(preferred if preferred else pattern_names)
-    elif tension < 0.7:
-        preferred = [n for n in pattern_names if n in ('eighth_weave', 'interlock_3_3_2', 'pulse_and_swell', 'syncopated_halfstep', 'triplet_interplay')]
-        chosen = random.choice(preferred if preferred else pattern_names)
-    else:
-        preferred = [n for n in pattern_names if n in ('sixteenth_alternation', 'cinematic_5_over_4', 'accelerando_Riff', 'rapid_hocket', 'cinematic_7_8', 'tremolo_run')]
-        chosen = random.choice(preferred if preferred else pattern_names)
-    
-    pattern = pool[chosen]
     tpb = 480
-    num_bars = len(chords)
+    num_bars = min(4, len(chords))
     ost_events = []
-    
-    for bar in range(num_bars):
-        bar_start = bar * 4 * tpb
-        chord = chords[bar]
-        
-        # Chord information for both high and low
+
+    # 1. Define 1-beat rhythmic cells: (offset_in_beat, duration_in_beat, pitch_role)
+    # Pitch roles: 'root', 'third', 'fifth', 'octave', 'seventh', 'passing'
+    if bpm < 90:
+        # Slow tempos (60-90 BPM): Primarily 1/16-notes, mixed groupings, triplets to maintain momentum
+        cell_A = [(0.0, 0.25, 'root'), (0.25, 0.25, 'third'), (0.5, 0.25, 'fifth'), (0.75, 0.25, 'third')]
+        cell_B = [(0.0, 0.25, 'root'), (0.25, 0.5, 'fifth'), (0.75, 0.25, 'octave')]
+        cell_C = [(0.0, 0.33, 'root'), (0.33, 0.33, 'fifth'), (0.66, 0.34, 'octave')]
+        cell_D = [(0.0, 0.25, 'root'), (0.25, 0.25, 'fifth'), (0.5, 0.5, 'root')]
+    elif bpm < 120:
+        # Medium tempos (90-120 BPM): 1/16-note ostinatos as default, energetic & driving
+        cell_A = [(0.0, 0.25, 'root'), (0.25, 0.25, 'fifth'), (0.5, 0.25, 'octave'), (0.75, 0.25, 'fifth')]
+        cell_B = [(0.0, 0.5, 'root'), (0.5, 0.25, 'fifth'), (0.75, 0.25, 'octave')]
+        cell_C = [(0.0, 0.25, 'root'), (0.25, 0.25, 'third'), (0.5, 0.5, 'fifth')]
+        cell_D = [(0.0, 1.0, 'root')]
+    elif bpm < 160:
+        # Fast tempos (120-160 BPM): Reduce density, 1/8-note movement with selective 1/16-note embellishments
+        cell_A = [(0.0, 0.5, 'root'), (0.5, 0.5, 'fifth')]
+        cell_B = [(0.0, 0.5, 'root'), (0.5, 0.25, 'fifth'), (0.75, 0.25, 'octave')]
+        cell_C = [(0.0, 0.75, 'root'), (0.75, 0.25, 'fifth')]
+        cell_D = [(0.0, 1.0, 'root')]
+    else:
+        # Very Fast tempos (160+ BPM): Primarily 1/8-note patterns, dotted rhythms, priority on clarity
+        cell_A = [(0.0, 0.5, 'root'), (0.5, 0.5, 'fifth')]
+        cell_B = [(0.0, 0.75, 'root'), (0.75, 0.25, 'octave')]
+        cell_C = [(0.0, 1.0, 'root')]
+        cell_D = [(0.0, 1.0, 'root')]
+
+    # 4-bar phrase structure (reused cells in developmental pattern)
+    # Bar 1 (Intro): Cell A, Cell A, Cell A, Cell A
+    # Bar 2 (Repetition): Cell A, Cell A, Cell A, Cell B
+    # Bar 3 (Development): Cell A, Cell A, Cell B, Cell C
+    # Bar 4 (Resolution): Cell B, Cell B, Cell C, Cell D
+    phrase_structure = [
+        [cell_A, cell_A, cell_A, cell_A],  # Bar 1
+        [cell_A, cell_A, cell_A, cell_B],  # Bar 2
+        [cell_A, cell_A, cell_B, cell_C],  # Bar 3
+        [cell_B, cell_B, cell_C, cell_D]   # Bar 4
+    ]
+
+    # Target register for ostinato: A3 (57) to E5 (76) to avoid wide octave jumps
+    register_min = 57
+    register_max = 76
+
+    prev_pitch = None
+
+    for bar_idx in range(num_bars):
+        bar_start = bar_idx * 4 * tpb
+        chord = chords[bar_idx]
+
+        # Extract pitch classes from current chord
         pcs = sorted(list(set(n % 12 for n in chord)))
+        if not pcs:
+            pcs = [0, 4, 7]  # fallback Major chord
+        
         root_pc = pcs[0]
+        third_pc = pcs[1 % len(pcs)]
         fifth_pc = pcs[2 % len(pcs)] if len(pcs) > 2 else pcs[1 % len(pcs)]
-        
-        # Low register base (C3 range)
-        low_base = 48
-        low_root = low_base - (low_base % 12) + root_pc
-        if low_root > low_base: low_root -= 12
-        low_fifth = low_root + ((fifth_pc - root_pc) % 12)
-        if low_fifth > low_root + 12: low_fifth -= 12
-        punch_notes = [low_root, low_fifth, low_root + 12]
-        
-        # High register base (G4)
-        high_base = 67
-        
-        for step_idx, (offset_beats, dur_beats, register) in enumerate(pattern):
-            tick = bar_start + round(offset_beats * tpb)
-            dur_ticks = round(dur_beats * tpb)
+        seventh_pc = pcs[3 % len(pcs)] if len(pcs) > 3 else (pcs[0] + 10) % 12
+
+        # Select the active bar's cell pattern from our 4-bar phrase structure
+        bar_pattern = phrase_structure[bar_idx % 4]
+
+        for beat_idx in range(4):
+            cell = bar_pattern[beat_idx]
             
-            if register == 'low':
-                # Low punch: root, fifth, or octave
-                note = punch_notes[step_idx % len(punch_notes)]
-                vel = int(78 + tension * 30)
-            else:
-                # High arpeggio: chord tone in upper register
-                note = _get_pitch_for_step(chord, step_idx, len(pattern), high_base)
-                vel = int(64 + tension * 28)
-                if (offset_beats % 2.0 < 0.01):
-                    vel = min(127, vel + 8)
+            for step_idx, (offset, dur, role) in enumerate(cell):
+                # Calculate start and duration ticks
+                tick = bar_start + beat_idx * tpb + round(offset * tpb)
+                dur_ticks = round(dur * tpb)
+
+                # Determine target pitch class based on role hierarchy
+                if role == 'root':
+                    pc = root_pc
+                elif role == 'third':
+                    pc = third_pc
+                elif role == 'fifth':
+                    pc = fifth_pc
+                elif role == 'octave':
+                    pc = root_pc
+                elif role == 'seventh':
+                    pc = seventh_pc
+                else: # passing/neighboring tone fallback
+                    pc = (root_pc + 2) % 12
+
+                # Fit pitch in the A3-E5 register comfortably
+                pitch = 60 + ((pc - 60) % 12)
+                if role == 'octave':
+                    pitch += 12
+                
+                # Keep within the defined register boundaries
+                while pitch < register_min:
+                    pitch += 12
+                while pitch > register_max:
+                    pitch -= 12
+
+                # Step-based voice leading: minimize large leaps if possible
+                if prev_pitch is not None and abs(pitch - prev_pitch) > 12:
+                    if pitch > prev_pitch and pitch - 12 >= register_min:
+                        pitch -= 12
+                    elif pitch < prev_pitch and pitch + 12 <= register_max:
+                        pitch += 12
+
+                prev_pitch = pitch
+
+                # Accent structure / velocity mapping
+                # Base velocity scales with tension
+                base_vel = int(64 + tension * 20)
+                
+                if beat_idx == 0 and step_idx == 0:
+                    # Strong downbeat accent
+                    vel = base_vel + 18
+                elif beat_idx == 2 and step_idx == 0:
+                    # Mid-bar secondary accent
+                    vel = base_vel + 12
+                elif step_idx == 0:
+                    # Beat-level accent
+                    vel = base_vel + 6
                 else:
-                    vel = max(30, vel - 6)
-            
-            ost_events.append((tick, 'on', note, min(127, vel), 5))
-            ost_events.append((tick + max(1, dur_ticks), 'off', note, 0, 5))
-    
-    return ost_events, chosen
+                    # Soft offbeats / subdivisions
+                    vel = base_vel - 10
+
+                # Ensure velocity stays within standard MIDI limits
+                vel = max(30, min(127, vel))
+
+                ost_events.append((tick, 'on', pitch, vel, 6))
+                ost_events.append((tick + max(1, dur_ticks), 'off', pitch, 0, 6))
+
+    # To maintain backward compatibility with any checks on returning a tuple
+    return ost_events, "cell_based_4bar"
 
 
 # ── MIDI GENERATION ─────────────────────────────────────────────────────────
@@ -1399,17 +1496,17 @@ def generate_ostinato(chords, bpm, tension):
 def generate_string_quartet(bpm, root_name, root_val, progression, roman_numerals,
                              tension, mood_name, label_name, num_bars=4):
     """
-    Main MIDI generator for the string quartet + unified ostinato.
-    Produces 7 tracks:
-      Track 0: Chord Progression (String Ensemble GM 48)
-      Track 1: Violin I Lead (GM 40)
-      Track 2: Violin II Counter-melody (GM 40)
-      Track 3: Viola (GM 41)
-      Track 4: Cello (GM 42)
-      Track 5: Unified Ostinato (GM 49) — weaves high arpeggios + low punches
-      Track 6: Piano Melody (GM 0)
+    Main MIDI generator for the string quartet + double bass + ostinato + piano.
+    Produces 8 tracks using the chord-tone-centric expressive generators:
+      Track 0 (Ch 0): String Ensemble Pad (GM 48)
+      Track 1 (Ch 1): Violin I Lead (GM 40)
+      Track 2 (Ch 2): Violin II Counter-melody (GM 40)
+      Track 3 (Ch 3): Viola (GM 41)
+      Track 4 (Ch 4): Cello (GM 42)
+      Track 5 (Ch 5): Double Bass (GM 43)
+      Track 6 (Ch 6): Unified Ostinato (GM 49)
+      Track 7 (Ch 7): Piano Melody (GM 0)
     """
-    tpb = 480
     tpb = 480
     full_prog = [progression[i % len(progression)] for i in range(num_bars)]
     bars_data = []
@@ -1424,16 +1521,30 @@ def generate_string_quartet(bpm, root_name, root_val, progression, roman_numeral
             ct_raw, scale = roman_numerals[bar_item]
             bars_data.append(([t % 12 for t in ct_raw], [t % 12 for t in scale]))
 
-    violin1 = generate_violin_lead(root_val, full_prog, roman_numerals, tension)
-    violin2 = generate_violin_counter(root_val, full_prog, roman_numerals, tension, lead_melody=violin1)
-    viola = generate_viola(root_val, full_prog, roman_numerals, tension, lead_melody=violin2)
-    cello = generate_cello(root_val, full_prog, roman_numerals, tension)
+    # ── Generate all voices using the chord-tone-centric expressive generators ──
+    # Compute shared active_bars for call-and-response between Violin I and Violin II
+    _num_bars = len(bars_data)
+    _v1_active = []
+    for _bi in range(_num_bars):
+        if _bi == 0:
+            _v1_active.append(random.choice([True, False]))
+        else:
+            _v1_active.append(not _v1_active[-1] if random.random() < 0.6 else _v1_active[-1])
+
+    violin1     = _generate_violin1_expressive(root_val, bars_data, tension, active_bars=_v1_active)
+    violin2     = _generate_violin2_expressive(root_val, bars_data, tension,
+                                               violin1_melody=violin1, violin1_active_bars=_v1_active)
+    double_bass = _generate_double_bass_expressive(root_val, bars_data, tension)
+    cello       = _generate_cello_expressive(root_val, bars_data, tension, double_bass_melody=double_bass)
+    viola       = _generate_viola_expressive(root_val, bars_data, tension,
+                                             violin1_melody=violin1, violin2_melody=violin2,
+                                             cello_melody=cello, double_bass_melody=double_bass)
     piano = generate_piano_melody(root_val, bars_data, tension)
 
-    # We will build chords
+    # Build voiced chords for String Pad and Ostinato
     chords = []
     prev_voicing = []
-    
+
     for bar in range(num_bars):
         bar_item = full_prog[bar]
         if isinstance(bar_item, list):
@@ -1444,11 +1555,11 @@ def generate_string_quartet(bpm, root_name, root_val, progression, roman_numeral
                     target_pcs = [(root_val + offset) % 12 for offset in offsets]
                 else:
                     target_pcs = [root_val, (root_val + 4) % 12, (root_val + 7) % 12]
-                    
+
                 root_pc = target_pcs[0]
                 third_pc = target_pcs[1 % len(target_pcs)]
                 fifth_pc = target_pcs[2 % len(target_pcs)] if len(target_pcs) > 2 else third_pc
-                
+
                 if not prev_voicing:
                     voicing = sorted(list(set([
                         48 + root_pc, 48 + third_pc, 48 + fifth_pc,
@@ -1466,11 +1577,11 @@ def generate_string_quartet(bpm, root_name, root_val, progression, roman_numeral
                 target_pcs = [(root_val + offset) % 12 for offset in offsets]
             else:
                 target_pcs = [root_val, (root_val + 4) % 12, (root_val + 7) % 12]
-                
+
             root_pc = target_pcs[0]
             third_pc = target_pcs[1 % len(target_pcs)]
             fifth_pc = target_pcs[2 % len(target_pcs)] if len(target_pcs) > 2 else third_pc
-            
+
             if bar == 0 or not prev_voicing:
                 voicing = sorted(list(set([
                     48 + root_pc, 48 + third_pc, 48 + fifth_pc,
@@ -1481,43 +1592,45 @@ def generate_string_quartet(bpm, root_name, root_val, progression, roman_numeral
             prev_voicing = voicing
             chords.append(voicing)
 
-    chords_for_ostinato = [c[0][0] if isinstance(c, list) else c for c in chords]
-    ost_events, ost_name = generate_ostinato(chords_for_ostinato, bpm, tension)
+    # A subdivided bar is a list of (voicing, dur) tuples; c[0] is a tuple.
+    # A simple bar is already the flat voicing list; c[0] is an int.
+    chords_for_ostinato = [c[0][0] if isinstance(c, list) and isinstance(c[0], tuple) else c for c in chords]
+    ost_events, _ = generate_ostinato(chords_for_ostinato, bpm, tension)
 
-    # Build 7 tracks (indices 0-6)
-    tracks_events = [[] for _ in range(7)]
+    # Build 8 tracks (Ch 0–7)
+    tracks_events = [[] for _ in range(8)]
 
-    # ── Track 0: Chord Progression (String Ensemble GM 48, Ch 0) ──
+    # ── Track 0: String Ensemble Pad (GM 48, Ch 0) ──
     tracks_events[0].append((0, 'program', 48, 0, 0))
     tracks_events[0].append((0, 'tempo', bpm, 0, 0))
 
     for bar in range(num_bars):
         bar_start_tick = bar * 4 * tpb
         bar_item = chords[bar]
-        vel_base = int(58 + tension * 32)
-        
-        if isinstance(bar_item, list):
-            # Subdivided chords
+        bar_dur = 4 * tpb
+        vel_pad = int(48 + tension * 20)
+
+        if isinstance(bar_item, list) and bar_item and isinstance(bar_item[0], tuple):
+            # Decoupled: list of (voicing, dur) tuples
             cum_ticks = 0
             for voicing, dur in bar_item:
                 dur_ticks = int(dur * tpb)
                 for note in voicing:
-                    tracks_events[0].append((bar_start_tick + cum_ticks, 'on', note, min(127, vel_base), 0))
-                    tracks_events[0].append((bar_start_tick + cum_ticks + dur_ticks - 30, 'off', note, 0, 0))
+                    tracks_events[0].append((bar_start_tick + cum_ticks, 'on', note, vel_pad, 0))
+                    tracks_events[0].append((bar_start_tick + cum_ticks + dur_ticks - 15, 'off', note, 0, 0))
                 cum_ticks += dur_ticks
         else:
-            voicing = bar_item
-            for note in voicing:
-                tracks_events[0].append((bar_start_tick, 'on', note, min(127, vel_base), 0))
-                tracks_events[0].append((bar_start_tick + 4 * tpb - 30, 'off', note, 0, 0))
+            # Simple: flat list of pitches (the voicing itself)
+            for note in bar_item:
+                tracks_events[0].append((bar_start_tick, 'on', note, vel_pad, 0))
+                tracks_events[0].append((bar_start_tick + bar_dur - 15, 'off', note, 0, 0))
 
-        # String pad swells via CC
-        specialist_styles.generate_cc_curve(tracks_events[0], 11, bar_start_tick, 4 * tpb,
-                                             start_val=65, end_val=85, curve_type="sine", ch=0)
-        specialist_styles.generate_cc_curve(tracks_events[0], 1, bar_start_tick, 4 * tpb,
-                                             start_val=60, end_val=80, curve_type="sine", ch=0)
+        specialist_styles.generate_cc_curve(tracks_events[0], 1, bar_start_tick, bar_dur,
+                                             start_val=50, end_val=int(60 + tension * 25), curve_type="sine", ch=0)
+        specialist_styles.generate_cc_curve(tracks_events[0], 11, bar_start_tick, bar_dur,
+                                             start_val=45, end_val=int(55 + tension * 30), curve_type="linear", ch=0)
 
-    # ── Track 1: Violin I Lead (GM 40, Ch 1) ──
+    # ── Track 1: Violin I (GM 40, Ch 1) ──
     tracks_events[1].append((0, 'program', 40, 0, 1))
     current_tick = 0
     for note, duration in violin1:
@@ -1525,21 +1638,19 @@ def generate_string_quartet(bpm, root_name, root_val, progression, roman_numeral
         if note is None:
             current_tick += dur_ticks
             continue
-        vel_lead = int(76 + tension * 28)
+        vel_v1 = int(68 + tension * 25)
         stagger = random.randint(-4, 4)
         on_t = max(0, current_tick + stagger)
-
-        tracks_events[1].append((on_t, 'on', note, min(127, vel_lead), 1))
-        tracks_events[1].append((current_tick + dur_ticks - 10, 'off', note, 0, 1))
-
-        # Violin phrase swells
-        specialist_styles.generate_cc_curve(tracks_events[1], 11, current_tick, dur_ticks,
-                                             start_val=60, end_val=vel_lead, curve_type="sine", ch=1)
+        tracks_events[1].append((on_t, 'on', note, min(127, vel_v1), 1))
+        tracks_events[1].append((current_tick + dur_ticks - 15, 'off', note, 0, 1))
+        c_type = "crescendo" if duration >= 2.0 and random.random() < 0.5 else "sine"
         specialist_styles.generate_cc_curve(tracks_events[1], 1, current_tick, dur_ticks,
-                                             start_val=55, end_val=vel_lead + 5, curve_type="sine", ch=1)
+                                             start_val=55, end_val=int(75 + tension * 20), curve_type=c_type, ch=1)
+        specialist_styles.generate_cc_curve(tracks_events[1], 11, current_tick, dur_ticks,
+                                             start_val=50, end_val=int(70 + tension * 25), curve_type="sine", ch=1)
         current_tick += dur_ticks
 
-    # ── Track 2: Violin II Counter-melody (GM 40, Ch 2) ──
+    # ── Track 2: Violin II (GM 40, Ch 2) ──
     tracks_events[2].append((0, 'program', 40, 0, 2))
     current_tick = 0
     for note, duration in violin2:
@@ -1547,15 +1658,13 @@ def generate_string_quartet(bpm, root_name, root_val, progression, roman_numeral
         if note is None:
             current_tick += dur_ticks
             continue
-        vel_cnt = int(62 + tension * 24)
+        vel_v2 = int(62 + tension * 22)
         stagger = random.randint(-4, 4)
         on_t = max(0, current_tick + stagger)
-
-        tracks_events[2].append((on_t, 'on', note, min(127, vel_cnt), 2))
-        tracks_events[2].append((current_tick + dur_ticks - 10, 'off', note, 0, 2))
-
+        tracks_events[2].append((on_t, 'on', note, min(127, vel_v2), 2))
+        tracks_events[2].append((current_tick + dur_ticks - 15, 'off', note, 0, 2))
         specialist_styles.generate_cc_curve(tracks_events[2], 11, current_tick, dur_ticks,
-                                             start_val=55, end_val=vel_cnt, curve_type="sine", ch=2)
+                                             start_val=50, end_val=int(68 + tension * 20), curve_type="sine", ch=2)
         current_tick += dur_ticks
 
     # ── Track 3: Viola (GM 41, Ch 3) ──
@@ -1566,15 +1675,13 @@ def generate_string_quartet(bpm, root_name, root_val, progression, roman_numeral
         if note is None:
             current_tick += dur_ticks
             continue
-        vel_viola = int(60 + tension * 22)
+        vel_va = int(60 + tension * 20)
         stagger = random.randint(-4, 4)
         on_t = max(0, current_tick + stagger)
-
-        tracks_events[3].append((on_t, 'on', note, min(127, vel_viola), 3))
-        tracks_events[3].append((current_tick + dur_ticks - 10, 'off', note, 0, 3))
-
+        tracks_events[3].append((on_t, 'on', note, min(127, vel_va), 3))
+        tracks_events[3].append((current_tick + dur_ticks - 15, 'off', note, 0, 3))
         specialist_styles.generate_cc_curve(tracks_events[3], 11, current_tick, dur_ticks,
-                                             start_val=50, end_val=vel_viola, curve_type="sine", ch=3)
+                                             start_val=50, end_val=int(66 + tension * 20), curve_type="sine", ch=3)
         current_tick += dur_ticks
 
     # ── Track 4: Cello (GM 42, Ch 4) ──
@@ -1585,27 +1692,42 @@ def generate_string_quartet(bpm, root_name, root_val, progression, roman_numeral
         if note is None:
             current_tick += dur_ticks
             continue
-        vel_cello = int(64 + tension * 26)
-        stagger = random.randint(-3, 3)
+        vel_vc = int(62 + tension * 22)
+        stagger = random.randint(-4, 4)
         on_t = max(0, current_tick + stagger)
-
-        tracks_events[4].append((on_t, 'on', note, min(127, vel_cello), 4))
-        tracks_events[4].append((current_tick + dur_ticks - 10, 'off', note, 0, 4))
-
+        tracks_events[4].append((on_t, 'on', note, min(127, vel_vc), 4))
+        tracks_events[4].append((current_tick + dur_ticks - 15, 'off', note, 0, 4))
         specialist_styles.generate_cc_curve(tracks_events[4], 11, current_tick, dur_ticks,
-                                             start_val=55, end_val=vel_cello, curve_type="sine", ch=4)
+                                             start_val=50, end_val=int(68 + tension * 22), curve_type="sine", ch=4)
         current_tick += dur_ticks
 
-    # ── Track 5: Unified Ostinato (GM 49 String Ensemble 2, Ch 5) ──
-    # A single track weaving both high arpeggiated chord tones and low root/fifth punches
-    tracks_events[5].append((0, 'program', 49, 0, 5))
-    for ev in ost_events:
-        tracks_events[5].append(ev)
-    specialist_styles.generate_cc_curve(tracks_events[5], 11, 0, num_bars * 4 * tpb,
-                                         start_val=int(50 + tension * 30), end_val=int(70 + tension * 30), curve_type="sine", ch=5)
+    # ── Track 5: Double Bass (GM 43, Ch 5) ──
+    tracks_events[5].append((0, 'program', 43, 0, 5))
+    current_tick = 0
+    for note, duration in double_bass:
+        dur_ticks = int(duration * tpb)
+        if note is None:
+            current_tick += dur_ticks
+            continue
+        vel_bass = int(60 + tension * 20)
+        stagger = random.randint(-3, 3)
+        on_t = max(0, current_tick + stagger)
+        tracks_events[5].append((on_t, 'on', note, min(127, vel_bass), 5))
+        tracks_events[5].append((current_tick + dur_ticks - 10, 'off', note, 0, 5))
+        specialist_styles.generate_cc_curve(tracks_events[5], 11, current_tick, dur_ticks,
+                                             start_val=50, end_val=vel_bass, curve_type="sine", ch=5)
+        current_tick += dur_ticks
 
-    # ── Track 6: Piano Melody (GM 0 Acoustic Grand, Ch 6) ──
-    tracks_events[6].append((0, 'program', 0, 0, 6))
+    # ── Track 6: Unified Ostinato (GM 49, Ch 6) ──
+    tracks_events[6].append((0, 'program', 49, 0, 6))
+    for ev in ost_events:
+        tick, etype, note, velocity, old_ch = ev
+        tracks_events[6].append((tick, etype, note, velocity, 6))
+    specialist_styles.generate_cc_curve(tracks_events[6], 11, 0, num_bars * 4 * tpb,
+                                         start_val=int(50 + tension * 30), end_val=int(70 + tension * 30), curve_type="sine", ch=6)
+
+    # ── Track 7: Piano Melody (GM 0, Ch 7) ──
+    tracks_events[7].append((0, 'program', 0, 0, 7))
     current_tick = 0
     for note, duration in piano:
         dur_ticks = int(duration * tpb)
@@ -1615,8 +1737,8 @@ def generate_string_quartet(bpm, root_name, root_val, progression, roman_numeral
         vel_piano = int(50 + tension * 30)
         if duration <= 0.5:
             vel_piano = max(38, vel_piano - 8)
-        tracks_events[6].append((current_tick, 'on', note, min(112, vel_piano), 6))
-        tracks_events[6].append((current_tick + max(1, dur_ticks - 20), 'off', note, 0, 6))
+        tracks_events[7].append((current_tick, 'on', note, min(112, vel_piano), 7))
+        tracks_events[7].append((current_tick + max(1, dur_ticks - 20), 'off', note, 0, 7))
         current_tick += dur_ticks
 
     # Build MIDI file
@@ -1709,6 +1831,56 @@ def select_key(is_minor):
 
 # ── MIDI FILE ANALYSIS ─────────────────────────────────────────────────────
 
+def detect_chord_root(midi_notes):
+    """
+    Given a list of MIDI notes played simultaneously, returns a list of pitch classes 
+    ordered as [root, third, fifth, ...].
+    Uses interval analysis (perfect fifths, thirds) to reliably detect the root 
+    even for inverted chords.
+    """
+    pcs = sorted(list(set(n % 12 for n in midi_notes)))
+    if not pcs:
+        return []
+    if len(pcs) == 1:
+        return pcs
+    
+    best_root = None
+    best_score = -1
+    
+    for pc in pcs:
+        score = 0
+        has_fifth = (pc + 7) % 12 in pcs
+        has_maj3 = (pc + 4) % 12 in pcs
+        has_min3 = (pc + 3) % 12 in pcs
+        
+        if has_fifth:
+            score += 3
+        if has_maj3 or has_min3:
+            score += 2
+            
+        if score > best_score:
+            best_score = score
+            best_root = pc
+            
+    if best_score == 0:
+        best_root = min(midi_notes) % 12
+        
+    ordered_pcs = [best_root]
+    
+    # Prioritize third and fifth next
+    for pc in pcs:
+        if pc != best_root and pc not in ordered_pcs:
+            if (pc - best_root) % 12 in (3, 4, 7):
+                ordered_pcs.append(pc)
+    
+    # Add remaining
+    for pc in pcs:
+        if pc not in ordered_pcs:
+            ordered_pcs.append(pc)
+            
+    return ordered_pcs
+
+
 def parse_midi_chords(filepath):
     """Extract simultaneous note groups (chords) from a MIDI file, ignoring choir channels."""
     mid = mido.MidiFile(filepath)
@@ -1738,7 +1910,7 @@ def parse_midi_chords(filepath):
         while j < len(note_ons) and note_ons[j][0] - t0 <= threshold:
             grp.append(note_ons[j][1])
             j += 1
-        pcs = sorted(set(n % 12 for n in grp))
+        pcs = detect_chord_root(grp)
         if len(pcs) >= 2:
             groups.append(pcs)
         i = j
@@ -1782,10 +1954,7 @@ def parse_midi_chord_timeline(filepath):
         while j < len(note_ons) and note_ons[j][0] - t0 <= threshold:
             grp.append(note_ons[j][1])
             j += 1
-        pcs = sorted(set(n % 12 for n in grp))
-        bass_pc = min(grp) % 12
-        if bass_pc in pcs:
-            pcs = [bass_pc] + [pc for pc in pcs if pc != bass_pc]
+        pcs = detect_chord_root(grp)
         if len(pcs) >= 2:
             if not groups or groups[-1][0] != t0 or groups[-1][1] != pcs:
                 groups.append((t0, pcs))
@@ -1859,54 +2028,625 @@ def detect_key(chord_groups):
         return root_name, root_pc, SCALE_AEOLIAN, 'Natural Minor', True
 
 
+def get_active_pitch_at_beat(melody, beat_pos):
+    """
+    Finds the active pitch in a list of (pitch, duration) tuples at a given beat_pos.
+    Robust against floating-point precision issues.
+    """
+    if not melody:
+        return None
+    cum = 0.0
+    for pitch, dur in melody:
+        if cum - 0.005 <= beat_pos < cum + dur - 0.005:
+            return pitch
+        cum += dur
+    return melody[-1][0]
+
+
+def get_chord_tone_role(pc, ct):
+    """
+    Classifies a pitch class (pc) relative to the chord tones (ct).
+    Assumes ct[0] is the chord root.
+    """
+    if not ct:
+        return 'other'
+    root_pc = ct[0]
+    diff = (pc - root_pc) % 12
+    if diff == 0:
+        return 'root'
+    elif diff in (3, 4):
+        return 'third'
+    elif diff == 7:
+        return 'fifth'
+    return 'other'
+
+
+def score_voicing_candidate(pitch, ct, active_pitches, prev_pitch, register, role_name, root_note):
+    """
+    Heuristically scores a candidate pitch for a string section voice.
+    Incorporates chord-tone priorities, doubling rules, spacing, voice crossing,
+    and voice-leading tendency resolution.
+    """
+    score = 100.0
+    
+    # 1. Register boundaries check
+    if pitch < register['min'] or pitch > register['max']:
+        return -9999.0
+        
+    # 2. Voice crossing check (Rule 31)
+    # Order: bass < cello < viola < violin2 < violin1
+    order = ['bass', 'cello', 'viola', 'violin2', 'violin1']
+    my_idx = order.index(role_name)
+    
+    for other_role, other_pitch in active_pitches.items():
+        if other_pitch is None:
+            continue
+        other_idx = order.index(other_role)
+        if other_idx < my_idx and pitch <= other_pitch:
+            return -9999.0  # Cannot cross lower voice
+        if other_idx > my_idx and pitch >= other_pitch:
+            return -9999.0  # Cannot cross upper voice
+            
+    # 3. Spacing check (Rule 33-37)
+    for other_role, other_pitch in active_pitches.items():
+        if other_pitch is None:
+            continue
+        other_idx = order.index(other_role)
+        dist = abs(pitch - other_pitch)
+        
+        # Upper neighbor
+        if other_idx == my_idx + 1:
+            if dist > 14:  # excessive separation (Rule 36)
+                score -= (dist - 14) * 5.0
+            if dist < 3:   # too close / unison (Rule 33)
+                score -= (3 - dist) * 10.0
+                
+        # Lower neighbor
+        if other_idx == my_idx - 1:
+            if role_name in ('violin1', 'violin2', 'viola'):
+                if dist > 14:
+                    score -= (dist - 14) * 5.0
+                if dist < 3:
+                    score -= (3 - dist) * 10.0
+            elif role_name == 'cello':
+                # Cello to bass spacing: keep sufficiently separated to prevent mud (Rule 37)
+                if dist < 8:
+                    score -= (8 - dist) * 15.0
+                if dist > 20:
+                    score -= (dist - 20) * 3.0
+                    
+    # 4. Proximity / Leap Penalty (Rule 28, 29)
+    if prev_pitch is not None:
+        leap = abs(pitch - prev_pitch)
+        if leap == 0:
+            score += 2.0  # Oblique motion / static holds are good for inner voices
+        elif leap <= 2:
+            score += 8.0  # Stepwise motion is highly preferred! (Rule 28)
+        elif leap <= 4:
+            score -= leap * 1.5  # Small leaps are fine
+        else:
+            score -= leap * 4.0  # Large leaps are penalized (Rule 29)
+            
+    # 5. Chord Tone Allocation & Doubling (Rules 5-9)
+    pc = (pitch - root_note) % 12
+    if pc in ct:
+        score += 15.0  # Chord tones are structural
+        
+        role = get_chord_tone_role(pc, ct)
+        
+        other_roles = []
+        for other_role, other_pitch in active_pitches.items():
+            if other_pitch is not None:
+                other_pc = (other_pitch - root_note) % 12
+                other_roles.append(get_chord_tone_role(other_pc, ct))
+                
+        third_count = other_roles.count('third')
+        root_count = other_roles.count('root')
+        fifth_count = other_roles.count('fifth')
+        
+        if role == 'third':
+            if third_count == 0:
+                score += 25.0  # Third must be present (Rule 8)
+            else:
+                score -= 15.0  # Avoid excessive doubling of the third (Rule 5, 8)
+        elif role == 'root':
+            if root_count == 0:
+                score += 15.0
+            elif root_count == 1:
+                score += 10.0  # Prefer doubling root first (Rule 6)
+            else:
+                score -= 5.0
+        elif role == 'fifth':
+            if fifth_count == 0:
+                score += 12.0
+            elif root_count >= 1 and fifth_count == 1:
+                score += 8.0   # Prioritize fifth doubling (Rule 7)
+            else:
+                score -= 5.0
+    else:
+        # Non-chord tone
+        score -= 20.0
+        
+    # 6. Tendency tone resolution (Rule 30)
+    if prev_pitch is not None:
+        prev_pc_key = (prev_pitch - root_note) % 12
+        # Leading tone (11) resolves up to tonic (0)
+        if prev_pc_key == 11:
+            if (pitch - root_note) % 12 == 0 and pitch > prev_pitch:
+                score += 20.0
+            else:
+                score -= 10.0
+        # Flat 6th (8) resolves down to 5th (7)
+        elif prev_pc_key == 8:
+            if (pitch - root_note) % 12 == 7 and pitch < prev_pitch:
+                score += 20.0
+            else:
+                score -= 10.0
+        # 4th degree (5) resolves down to 3rd (3 or 4)
+        elif prev_pc_key == 5:
+            if (pitch - root_note) % 12 in (3, 4) and pitch < prev_pitch:
+                score += 15.0
+                
+    return score
+
+
+def _generate_double_bass_expressive(root_note, bars_data, tension=0.5):
+    """
+    Generates the Double Bass line (Ch 5/Track 5).
+    Plays the root note of each chord as a sustained whole-chord note.
+    """
+    double_bass = []
+    prev_pitch = None
+    DB_REG = {'min': 28, 'max': 48, 'center': 38}
+
+    for bar_harmony in bars_data:
+        if isinstance(bar_harmony, list):
+            # Decoupled: one sustained note per chord segment
+            for ct, sc, dur in bar_harmony:
+                root_pc = ct[0]
+                pitch = _pitch_in_register(root_note, root_pc, DB_REG, preferred=prev_pitch)
+                double_bass.append((pitch, dur))
+                prev_pitch = pitch
+        else:
+            # Simple: one sustained note for the full bar
+            ct, sc = bar_harmony
+            root_pc = ct[0]
+            pitch = _pitch_in_register(root_note, root_pc, DB_REG, preferred=prev_pitch)
+            double_bass.append((pitch, 4.0))
+            prev_pitch = pitch
+
+    return double_bass
+
+
+def _generate_cello_expressive(root_note, bars_data, tension=0.5, double_bass_melody=None):
+    """
+    Generates the Cello line (Ch 4/Track 4).
+    Independently follows the chord progression — plays the root note of each
+    chord sustained for its full duration, in the cello register (one octave
+    above the bass).
+    """
+    cello = []
+    prev_pitch = None
+    CELLO_REG = {'min': 40, 'max': 57, 'center': 48}
+
+    for bar_harmony in bars_data:
+        if isinstance(bar_harmony, list):
+            # Decoupled: one sustained note per chord segment
+            for ct, sc, dur in bar_harmony:
+                root_pc = ct[0]
+                pitch = _pitch_in_register(root_note, root_pc, CELLO_REG, preferred=prev_pitch)
+                cello.append((pitch, dur))
+                prev_pitch = pitch
+        else:
+            # Simple: one sustained note for the full bar
+            ct, sc = bar_harmony
+            root_pc = ct[0]
+            pitch = _pitch_in_register(root_note, root_pc, CELLO_REG, preferred=prev_pitch)
+            cello.append((pitch, 4.0))
+            prev_pitch = pitch
+
+    return cello
+
+
+def _generate_violin1_expressive(root_note, bars_data, tension=0.5, active_bars=None):
+    """
+    Generates a unique, catchy, and highly expressive Violin I melody line (Ch 1/Track 1).
+    Uses a Call-and-Response architecture with randomly decided active/passive bars.
+    In active bars it plays melodic motifs; in passive bars it sustains chord tones.
+    active_bars: optional pre-computed list of bool per bar (shared with Violin II).
+    """
+    melody = []
+    prev_pitch = None
+    prev_was_nct = False
+    prev_dir = 0
+
+    num_bars = len(bars_data)
+
+    # Use provided active_bars or generate randomly (~60% alternation)
+    if active_bars is None:
+        active_bars = []
+    if len(active_bars) < num_bars:
+        active_bars = []
+        for bar_idx in range(num_bars):
+            if bar_idx == 0:
+                active_bars.append(random.choice([True, False]))
+            else:
+                if random.random() < 0.6:
+                    active_bars.append(not active_bars[-1])
+                else:
+                    active_bars.append(active_bars[-1])
+
+    rhythm_motifs = [
+        [1.5, 0.5, 1.0, 1.0],
+        [1.0, 1.0, 1.0, 1.0],
+        [1.0, 1.0, 0.5, 0.5, 1.0],
+        [1.5, 0.5, 1.5, 0.5],
+        [2.0, 1.0, 1.0],
+        [1.0, 2.0, 1.0],
+        [0.5, 0.5, 1.0, 0.5, 0.5, 1.0],
+        [0.5, 0.5, 0.5, 0.5, 1.0, 1.0],
+    ]
+    motif_rhythm = random.choice(rhythm_motifs)
+
+    contour = []
+    for bar_idx in range(num_bars):
+        pct = bar_idx / max(1, num_bars - 1)
+        if pct < 0.25:
+            center = 76
+        elif pct < 0.5:
+            center = 80
+        elif pct < 0.75:
+            center = 84
+        else:
+            center = 76
+        contour.append(center)
+
+    first_active_notes = []
+
+    for bar_idx, bar_harmony in enumerate(bars_data):
+        target_center = contour[bar_idx]
+        is_active = active_bars[bar_idx]
+        violin1_reg = {'min': 72, 'max': 93, 'center': target_center}
+
+        if not is_active:
+            # PASSIVE: hold a single chord tone for the full bar
+            if isinstance(bar_harmony, list):
+                beat_pos = 0.0
+                for ct, sc, dur in bar_harmony:
+                    pitch_pc = ct[0]
+                    pitch = _pitch_in_register(root_note, pitch_pc, violin1_reg, preferred=prev_pitch)
+                    melody.append((pitch, dur))
+                    prev_pitch = pitch
+                    beat_pos += dur
+            else:
+                ct, sc = bar_harmony
+                pitch_pc = ct[0]
+                pitch = _pitch_in_register(root_note, pitch_pc, violin1_reg, preferred=prev_pitch)
+                melody.append((pitch, 4.0))
+                prev_pitch = pitch
+            continue
+
+        # ACTIVE: play melodic motif
+        is_first_active = (bar_idx == 0) or (not active_bars[bar_idx - 1])
+        bar_rhythm = motif_rhythm if is_first_active else random.choice(rhythm_motifs)
+
+        beat_pos = 0.0
+        for dur in bar_rhythm:
+            ct, sc = get_bar_harmony_at_beat(bar_harmony, beat_pos)
+            strong = (beat_pos % 2.0 < 0.01) or (beat_pos % 1.0 < 0.01)
+            ct_pcs = [c % 12 for c in ct]
+            sc_pcs = [s % 12 for s in sc]
+
+            candidates = []
+            for p in range(violin1_reg['min'], violin1_reg['max'] + 1):
+                if (p - root_note) % 12 in sc_pcs:
+                    candidates.append(p)
+            if not candidates:
+                candidates = [76, 79, 81, 84]
+
+            # Diatonic sequencing from first active phrase
+            sequenced_pitch = None
+            if not is_first_active and first_active_notes:
+                note_idx = min(len(first_active_notes) - 1, int(beat_pos))
+                b1_pitch, _ = first_active_notes[note_idx]
+                prev_active_bar = bar_idx - 1
+                while prev_active_bar > 0 and not active_bars[prev_active_bar]:
+                    prev_active_bar -= 1
+                b1_harmony = bars_data[prev_active_bar]
+                ct1, _ = get_bar_harmony_at_beat(b1_harmony, beat_pos)
+                shift = (ct[0] - ct1[0]) % 12
+                target_p = b1_pitch + shift
+                while target_p < violin1_reg['min']:
+                    target_p += 12
+                while target_p > violin1_reg['max']:
+                    target_p -= 12
+                sequenced_pitch = target_p
+
+            scores = []
+            for p in candidates:
+                score = 0.0
+                pc = (p - root_note) % 12
+                score -= abs(p - target_center) * 1.5
+                is_chord_tone = pc in ct_pcs
+                if is_chord_tone:
+                    score += 20.0 if strong else 10.0
+                    if len(ct) > 1 and pc == ct[1 % len(ct)]:
+                        score -= 5.0
+                else:
+                    score += -15.0 if strong else 2.0
+                if prev_pitch is not None:
+                    step = abs(p - prev_pitch)
+                    if step == 0:
+                        score -= 8.0
+                    elif step in (1, 2):
+                        score += 15.0
+                    elif step in (3, 4, 5):
+                        score += 5.0
+                    elif step in (7, 12):
+                        score += 8.0
+                    else:
+                        score -= (step - 5) * 4.0
+                    if prev_was_nct:
+                        score += 35.0 if (is_chord_tone and step in (1, 2)) else -20.0
+                    my_dir = 1 if p > prev_pitch else (-1 if p < prev_pitch else 0)
+                    if my_dir == prev_dir and my_dir != 0:
+                        score += 4.0
+                        
+                    # 6. Resolve leaps
+                    prev_step = abs(prev_pitch - (melody[-2][0] if len(melody) >= 2 else prev_pitch))
+                    if prev_step >= 5:
+                        prev_dir_actual = 1 if prev_pitch > (melody[-2][0] if len(melody) >= 2 else prev_pitch) else -1
+                        if my_dir == -prev_dir_actual and step in (1, 2):
+                            score += 25.0
+                
+                # 7. Sequenced pitch bonus
+                if sequenced_pitch is not None and p == sequenced_pitch:
+                    score += 40.0
+                    
+                scores.append(score)
+                
+            temp = 0.45 + (tension * 0.15)
+            pitch = sample_from_scores(candidates, scores, temperature=temp)
+            
+            prev_was_nct = ((pitch - root_note) % 12) not in ct_pcs
+            if prev_pitch is not None:
+                prev_dir = 1 if pitch > prev_pitch else (-1 if pitch < prev_pitch else 0)
+                
+            melody.append((pitch, dur))
+            if is_first_active:
+                first_active_notes.append((pitch, dur))
+                
+            prev_pitch = pitch
+            beat_pos += dur
+            
+    return melody
+
+
+def _generate_violin2_expressive(root_note, bars_data, tension=0.5, violin1_melody=None, violin1_active_bars=None):
+    """
+    Generates a complementary Violin II line (Ch 2/Track 2).
+    Call-and-Response: active when Violin I is passive, sustains when Violin I is active.
+    """
+    melody = []
+    prev_pitch = None
+    v2_reg = {'min': 60, 'max': 71, 'center': 64}
+
+    rhythm_motifs = [
+        [1.5, 0.5, 1.0, 1.0],
+        [1.0, 1.0, 1.0, 1.0],
+        [1.0, 1.0, 0.5, 0.5, 1.0],
+        [1.5, 0.5, 1.5, 0.5],
+        [2.0, 1.0, 1.0],
+        [1.0, 2.0, 1.0],
+        [0.5, 0.5, 1.0, 0.5, 0.5, 1.0],
+    ]
+    motif_rhythm = random.choice(rhythm_motifs)
+
+    num_bars = len(bars_data)
+    # Violin II is active exactly when Violin I is passive, and vice versa
+    if violin1_active_bars is not None:
+        v2_active_bars = [not b for b in violin1_active_bars]
+    else:
+        # fallback: alternate
+        v2_active_bars = [(bar_idx % 2 == 1) for bar_idx in range(num_bars)]
+
+    for bar_idx, bar_harmony in enumerate(bars_data):
+        is_active = v2_active_bars[bar_idx]
+        v1_pitch_bar = get_active_pitch_at_beat(violin1_melody, bar_idx * 4.0)
+
+        if not is_active:
+            # PASSIVE: hold a chord tone below Violin I
+            ct, sc = get_bar_harmony_at_beat(bar_harmony, 0.0)
+            ct_pcs = [c % 12 for c in ct]
+            if isinstance(bar_harmony, list):
+                beat_pos = 0.0
+                for ct_sub, sc_sub, dur in bar_harmony:
+                    ct_pcs_sub = [c % 12 for c in ct_sub]
+                    candidates = [p for p in range(v2_reg['min'], v2_reg['max'] + 1)
+                                  if (p - root_note) % 12 in ct_pcs_sub
+                                  and (v1_pitch_bar is None or p < v1_pitch_bar)]
+                    pitch = (max(candidates) if candidates
+                             else _pitch_in_register(root_note, ct_sub[0], v2_reg))
+                    melody.append((pitch, dur))
+                    prev_pitch = pitch
+                    beat_pos += dur
+            else:
+                candidates = [p for p in range(v2_reg['min'], v2_reg['max'] + 1)
+                              if (p - root_note) % 12 in ct_pcs
+                              and (v1_pitch_bar is None or p < v1_pitch_bar)]
+                pitch = (max(candidates) if candidates
+                         else _pitch_in_register(root_note, ct[0], v2_reg))
+                melody.append((pitch, 4.0))
+                prev_pitch = pitch
+            continue
+
+        # ACTIVE: play counter-melody motif
+        is_first_active = (bar_idx == 0) or (not v2_active_bars[bar_idx - 1])
+        bar_rhythm = motif_rhythm if is_first_active else random.choice(rhythm_motifs)
+        beat_pos = 0.0
+        for dur in bar_rhythm:
+            ct, sc = get_bar_harmony_at_beat(bar_harmony, beat_pos)
+            v1_pitch = get_active_pitch_at_beat(violin1_melody, bar_idx * 4.0 + beat_pos)
+            ct_pcs = [c % 12 for c in ct]
+            sc_pcs = [s % 12 for s in sc]
+
+            candidates = [p for p in range(v2_reg['min'], v2_reg['max'] + 1)
+                          if (p - root_note) % 12 in sc_pcs
+                          and (v1_pitch is None or p < v1_pitch)]
+            if not candidates:
+                candidates = [60, 62, 64, 67]
+
+            scores = []
+            for p in candidates:
+                score = score_voicing_candidate(p, ct_pcs, {'violin1': v1_pitch},
+                                                prev_pitch, v2_reg, 'violin2', root_note)
+                if v1_pitch is not None and (p - root_note) % 12 in ct_pcs:
+                    dist = v1_pitch - p
+                    if dist > 0:
+                        score += (12 - dist) * 1.5
+                if prev_pitch is not None and v1_pitch is not None:
+                    prev_v1 = get_active_pitch_at_beat(violin1_melody, bar_idx * 4.0 + beat_pos - 0.5)
+                    if prev_v1 is not None and prev_v1 != v1_pitch:
+                        if (v1_pitch - prev_v1) * (p - prev_pitch) > 0:
+                            score -= 8.0
+                scores.append(score)
+
+            pitch = sample_from_scores(candidates, scores, temperature=0.25)
+            melody.append((pitch, dur))
+            prev_pitch = pitch
+            beat_pos += dur
+
+    return melody
+
+
+def _generate_viola_expressive(root_note, bars_data, tension=0.5,
+                               violin1_melody=None, violin2_melody=None,
+                               cello_melody=None, double_bass_melody=None):
+    """
+    Generates the Viola line (Ch 3/Track 3).
+    The ONLY always-dynamic channel — plays rhythmic figures every bar,
+    dynamically harmonizing all other voices by filling missing chord tones.
+    """
+    melody = []
+    prev_pitch = None
+    viola_reg = {'min': 48, 'max': 59, 'center': 52}
+
+    # Always active rhythmic pools by tension
+    if tension < 0.4:
+        rhythm_pool = [[2.0, 2.0], [1.5, 1.5, 1.0], [1.0, 1.0, 2.0]]
+    elif tension < 0.65:
+        rhythm_pool = [[1.0, 1.0, 1.0, 1.0], [1.5, 1.5, 1.0], [1.0, 2.0, 1.0], [2.0, 2.0]]
+    else:
+        rhythm_pool = [[1.0, 1.0, 1.0, 1.0], [1.5, 0.5, 1.5, 0.5],
+                       [1.0, 2.0, 1.0], [0.5, 0.5, 1.0, 0.5, 0.5, 1.0]]
+
+    for bar_idx, bar_harmony in enumerate(bars_data):
+        # Viola is ALWAYS active — never sustains
+        bar_rhythm = random.choice(rhythm_pool)
+        beat_pos = 0.0
+        for dur in bar_rhythm:
+            ct, sc = get_bar_harmony_at_beat(bar_harmony, beat_pos)
+            abs_beat = bar_idx * 4.0 + beat_pos
+
+            v1_pitch  = get_active_pitch_at_beat(violin1_melody,      abs_beat)
+            v2_pitch  = get_active_pitch_at_beat(violin2_melody,      abs_beat)
+            cel_pitch = get_active_pitch_at_beat(cello_melody,        abs_beat)
+            db_pitch  = get_active_pitch_at_beat(double_bass_melody,  abs_beat)
+
+            ct_pcs = [c % 12 for c in ct]
+            sc_pcs = [s % 12 for s in sc]
+
+            # Find pitch classes already covered by other voices
+            voiced_pcs = set()
+            for ref in (v1_pitch, v2_pitch, cel_pitch, db_pitch):
+                if ref is not None:
+                    voiced_pcs.add((ref - root_note) % 12)
+            missing_ct = [c for c in ct_pcs if c not in voiced_pcs]
+
+            candidates = [p for p in range(viola_reg['min'], viola_reg['max'] + 1)
+                          if (p - root_note) % 12 in sc_pcs
+                          and (cel_pitch is None or p > cel_pitch)
+                          and (v2_pitch  is None or p < v2_pitch)]
+            if not candidates:
+                candidates = [p for p in range(viola_reg['min'] - 3, viola_reg['max'] + 4)
+                              if (cel_pitch is None or p > cel_pitch)
+                              and (v2_pitch  is None or p < v2_pitch)]
+            if not candidates:
+                candidates = [50, 52, 55, 57]
+
+            scores = []
+            for p in candidates:
+                pc = (p - root_note) % 12
+                score = score_voicing_candidate(
+                    p, ct_pcs,
+                    {'violin1': v1_pitch, 'violin2': v2_pitch, 'cello': cel_pitch},
+                    prev_pitch, viola_reg, 'viola', root_note)
+
+                # Priority: fill missing chord tones
+                if pc in missing_ct:
+                    score += 30.0
+                elif pc in ct_pcs:
+                    score += 10.0
+
+                # Suspension bonus at bar boundary
+                if beat_pos == 0.0 and prev_pitch is not None and p == prev_pitch:
+                    score += 12.0
+
+                scores.append(score)
+
+            pitch = sample_from_scores(candidates, scores, temperature=0.2)
+            melody.append((pitch, dur))
+            prev_pitch = pitch
+            beat_pos += dur
+
+    return melody
+
+
 def generate_quartet_over_midi(filepath, out_dir):
-    """Load a MIDI file, detect its key and tempo, and generate a string quartet overlay."""
+    """
+    Upgraded VVC Option 5 Overlayer.
+    Loads an existing MIDI file, extracts chords/key/tempo, and generates
+    8-track orchestrations following chord-tone allocation, registers,
+    stepwise voice leading, and dynamic texture.
+    Preserves all original tracks/channels from the source MIDI.
+
+    NOTE: This function is intentionally isolated from the global
+    GENERATION_MODE toggle (Toggle T in the main menu). It always uses
+    the chord-tone-centric expressive generators regardless of whether
+    'Simple' or 'Decoupled' mode is active — the toggle only affects
+    the VVC String Quartet composer (Option 3).
+    """
+    # Guard: pin local mode — never inherit global GENERATION_MODE toggle
+    _overlay_mode = 'expressive'  # noqa: F841 — intentional isolation sentinel
+
     print(f"\n  Analyzing: {os.path.basename(filepath)} ...")
     try:
         chord_groups, src_tpb = parse_midi_chords(filepath)
     except Exception as e:
-        print(f"  [ERROR] Could not read file: {e}"); return
-
-    if not chord_groups:
-        print("  [ERROR] No chord groups found.")
-        print("  Tip: The file must contain block chords (not single-note lines).")
+        print(f"  [ERROR] Could not read file: {e}")
         return
 
-    # Detect key
+    if not chord_groups:
+        print("  [ERROR] No clear chord progression detected in MIDI. Exiting.")
+        return
+
+    # Detect key and tempo
     root_name, root_pc, scale, scale_name, is_minor = detect_key(chord_groups)
     root_midi = ROOTS.get(root_name, 45)
-
-    # Detect tempo
     bpm = detect_tempo(filepath)
 
-    print(f"  Detected Key  : {root_name} {scale_name} ({'Minor' if is_minor else 'Major'})")
-    print(f"  Detected BPM  : {bpm}")
-    print(f"  Chord groups  : {len(chord_groups)} unique harmonies")
+    print(f"  [DETECTED] Key   : {root_name} {scale_name}")
+    print(f"  [DETECTED] Tempo : {bpm} BPM")
+    print(f"  [DETECTED] Chords: {len(chord_groups)} bars detected.")
 
-    # Ask for tension level
-    print("\n  Tension level for generated melodies:")
-    print("  1. Gentle / Lyrical   2. Balanced   3. Intense / Dramatic")
-    tc = input("  Choice (1-3, default 2): ").strip() or '2'
-    tension = {'1': 0.3, '2': 0.55, '3': 0.85}.get(tc, 0.55)
-
-    # Build bars_data from detected chord groups
+    # Build bars_data
     bars_data = []
     for pcs in chord_groups:
         ct = [(pc - root_pc) % 12 for pc in pcs]
         sc = [t % 12 for t in scale]
         bars_data.append((ct, sc))
 
-    # Generate the quartet voices — each with its own distinct register band
-    violin1 = _generate_lead_core(root_midi, bars_data, tension)
-    violin2 = _generate_counter_core(root_midi, bars_data, tension, lead_melody=violin1,
-                                      register=VIOLIN2_REGISTER)
-    viola_notes = _generate_counter_core(root_midi, bars_data, tension * 0.8, lead_melody=violin2,
-                                          register=VIOLA_REGISTER)
-    cello_notes = _generate_cello_core(root_midi, bars_data, tension)
-    piano_notes = generate_piano_melody(root_midi, bars_data, tension)
-
-    # Build pure chords array for ostinato generation from the parsed MIDI
-    tpb = 480
+    # Setup harmonic foundation for Pad and Ostinato
     chords_for_ostinato = []
     prev_voicing = []
     for bar_idx in range(len(chord_groups)):
@@ -1925,31 +2665,54 @@ def generate_quartet_over_midi(filepath, out_dir):
             voicing = voice_lead_chord(prev_voicing, target_pcs, register_min=48, register_max=72)
         prev_voicing = voicing
         chords_for_ostinato.append(voicing)
-        
-    ost_events, ost_name = generate_ostinato(chords_for_ostinato, bpm, tension)
 
-    # Build 7 tracks: String Pad, Violin I, Violin II, Viola, Cello, Unified Ostinato, Piano Melody
-    tracks_events = [[] for _ in range(7)]
+    # Set tension based on scale type/mood properties
+    tension = 0.65 if is_minor else 0.50
 
-    # Track 0: String Ensemble Pad + Tempo
+    # 1. Generate Voice Parts using new expressive algorithms
+    # Compute shared active_bars for call-and-response between Violin I and Violin II
+    _num_bars = len(bars_data)
+    _v1_active = []
+    for _bi in range(_num_bars):
+        if _bi == 0:
+            _v1_active.append(random.choice([True, False]))
+        else:
+            _v1_active.append(not _v1_active[-1] if random.random() < 0.6 else _v1_active[-1])
+
+    violin1     = _generate_violin1_expressive(root_midi, bars_data, tension, active_bars=_v1_active)
+    violin2     = _generate_violin2_expressive(root_midi, bars_data, tension,
+                                               violin1_melody=violin1, violin1_active_bars=_v1_active)
+    double_bass = _generate_double_bass_expressive(root_midi, bars_data, tension)
+    cello_notes = _generate_cello_expressive(root_midi, bars_data, tension, double_bass_melody=double_bass)
+    viola_notes  = _generate_viola_expressive(root_midi, bars_data, tension,
+                                              violin1_melody=violin1, violin2_melody=violin2,
+                                              cello_melody=cello_notes, double_bass_melody=double_bass)
+
+    # 2. Generate Ostinato and Piano
+    ost_events, _ = generate_ostinato(chords_for_ostinato, bpm, tension)
+    piano_notes = generate_piano_melody(root_midi, bars_data, tension)
+
+    # Build 8 VVC tracks (Ch 0 to Ch 7)
+    tpb = src_tpb  # Align exactly to source MIDI's ticks_per_beat
+    tracks_events = [[] for _ in range(8)]
+
+    # ── Track 0: String Pad (GM 48 String Ensemble 1, Ch 0) ──
     tracks_events[0].append((0, 'program', 48, 0, 0))
     tracks_events[0].append((0, 'tempo', bpm, 0, 0))
-
     for bar_idx in range(len(chord_groups)):
-        bar_start_tick = bar_idx * 4 * tpb
         voicing = chords_for_ostinato[bar_idx]
-        vel_base = int(58 + tension * 32)
-
+        bar_start_tick = bar_idx * 4 * tpb
+        bar_dur = 4 * tpb
+        vel_pad = int(48 + tension * 20)
         for note in voicing:
-            tracks_events[0].append((bar_start_tick, 'on', note, min(127, vel_base), 0))
-            tracks_events[0].append((bar_start_tick + 4 * tpb - 30, 'off', note, 0, 0))
+            tracks_events[0].append((bar_start_tick, 'on', note, vel_pad, 0))
+            tracks_events[0].append((bar_start_tick + bar_dur - 15, 'off', note, 0, 0))
+        specialist_styles.generate_cc_curve(tracks_events[0], 1, bar_start_tick, bar_dur,
+                                             start_val=50, end_val=int(60 + tension * 25), curve_type="sine", ch=0)
+        specialist_styles.generate_cc_curve(tracks_events[0], 11, bar_start_tick, bar_dur,
+                                             start_val=45, end_val=int(55 + tension * 30), curve_type="linear", ch=0)
 
-        specialist_styles.generate_cc_curve(tracks_events[0], 11, bar_start_tick, 4 * tpb,
-                                             start_val=65, end_val=85, curve_type="sine", ch=0)
-        specialist_styles.generate_cc_curve(tracks_events[0], 1, bar_start_tick, 4 * tpb,
-                                             start_val=60, end_val=80, curve_type="sine", ch=0)
-
-    # Render Violin I
+    # ── Track 1: Violin I (GM 40 Violin, Ch 1) ──
     tracks_events[1].append((0, 'program', 40, 0, 1))
     current_tick = 0
     for note, duration in violin1:
@@ -1957,18 +2720,21 @@ def generate_quartet_over_midi(filepath, out_dir):
         if note is None:
             current_tick += dur_ticks
             continue
-        vel_lead = int(76 + tension * 28)
+        vel_v1 = int(68 + tension * 25)
         stagger = random.randint(-4, 4)
         on_t = max(0, current_tick + stagger)
-        tracks_events[1].append((on_t, 'on', note, min(127, vel_lead), 1))
-        tracks_events[1].append((current_tick + dur_ticks - 10, 'off', note, 0, 1))
-        specialist_styles.generate_cc_curve(tracks_events[1], 11, current_tick, dur_ticks,
-                                             start_val=60, end_val=vel_lead, curve_type="sine", ch=1)
+        tracks_events[1].append((on_t, 'on', note, min(127, vel_v1), 1))
+        tracks_events[1].append((current_tick + dur_ticks - 15, 'off', note, 0, 1))
+        
+        # CC 1 & CC 11 curves for human expression
+        c_type = "crescendo" if duration >= 2.0 and random.random() < 0.5 else "sine"
         specialist_styles.generate_cc_curve(tracks_events[1], 1, current_tick, dur_ticks,
-                                             start_val=55, end_val=vel_lead + 5, curve_type="sine", ch=1)
+                                             start_val=55, end_val=int(75 + tension * 20), curve_type=c_type, ch=1)
+        specialist_styles.generate_cc_curve(tracks_events[1], 11, current_tick, dur_ticks,
+                                             start_val=50, end_val=int(70 + tension * 25), curve_type="sine", ch=1)
         current_tick += dur_ticks
 
-    # Render Violin II
+    # ── Track 2: Violin II (GM 40 Violin, Ch 2) ──
     tracks_events[2].append((0, 'program', 40, 0, 2))
     current_tick = 0
     for note, duration in violin2:
@@ -1976,16 +2742,16 @@ def generate_quartet_over_midi(filepath, out_dir):
         if note is None:
             current_tick += dur_ticks
             continue
-        vel_cnt = int(62 + tension * 24)
+        vel_v2 = int(62 + tension * 22)
         stagger = random.randint(-4, 4)
         on_t = max(0, current_tick + stagger)
-        tracks_events[2].append((on_t, 'on', note, min(127, vel_cnt), 2))
-        tracks_events[2].append((current_tick + dur_ticks - 10, 'off', note, 0, 2))
+        tracks_events[2].append((on_t, 'on', note, min(127, vel_v2), 2))
+        tracks_events[2].append((current_tick + dur_ticks - 15, 'off', note, 0, 2))
         specialist_styles.generate_cc_curve(tracks_events[2], 11, current_tick, dur_ticks,
-                                             start_val=55, end_val=vel_cnt, curve_type="sine", ch=2)
+                                             start_val=50, end_val=int(68 + tension * 20), curve_type="sine", ch=2)
         current_tick += dur_ticks
 
-    # Render Viola
+    # ── Track 3: Viola (GM 41 Viola, Ch 3) ──
     tracks_events[3].append((0, 'program', 41, 0, 3))
     current_tick = 0
     for note, duration in viola_notes:
@@ -1993,16 +2759,16 @@ def generate_quartet_over_midi(filepath, out_dir):
         if note is None:
             current_tick += dur_ticks
             continue
-        vel_viola = int(60 + tension * 22)
+        vel_va = int(60 + tension * 20)
         stagger = random.randint(-4, 4)
         on_t = max(0, current_tick + stagger)
-        tracks_events[3].append((on_t, 'on', note, min(127, vel_viola), 3))
-        tracks_events[3].append((current_tick + dur_ticks - 10, 'off', note, 0, 3))
+        tracks_events[3].append((on_t, 'on', note, min(127, vel_va), 3))
+        tracks_events[3].append((current_tick + dur_ticks - 15, 'off', note, 0, 3))
         specialist_styles.generate_cc_curve(tracks_events[3], 11, current_tick, dur_ticks,
-                                             start_val=50, end_val=vel_viola, curve_type="sine", ch=3)
+                                             start_val=50, end_val=int(66 + tension * 20), curve_type="sine", ch=3)
         current_tick += dur_ticks
 
-    # Render Cello
+    # ── Track 4: Cello (GM 42 Cello, Ch 4) ──
     tracks_events[4].append((0, 'program', 42, 0, 4))
     current_tick = 0
     for note, duration in cello_notes:
@@ -2010,24 +2776,43 @@ def generate_quartet_over_midi(filepath, out_dir):
         if note is None:
             current_tick += dur_ticks
             continue
-        vel_cello = int(64 + tension * 26)
-        stagger = random.randint(-3, 3)
+        vel_vc = int(62 + tension * 22)
+        stagger = random.randint(-4, 4)
         on_t = max(0, current_tick + stagger)
-        tracks_events[4].append((on_t, 'on', note, min(127, vel_cello), 4))
-        tracks_events[4].append((current_tick + dur_ticks - 10, 'off', note, 0, 4))
+        tracks_events[4].append((on_t, 'on', note, min(127, vel_vc), 4))
+        tracks_events[4].append((current_tick + dur_ticks - 15, 'off', note, 0, 4))
         specialist_styles.generate_cc_curve(tracks_events[4], 11, current_tick, dur_ticks,
-                                             start_val=55, end_val=vel_cello, curve_type="sine", ch=4)
+                                             start_val=50, end_val=int(68 + tension * 22), curve_type="sine", ch=4)
         current_tick += dur_ticks
 
-    # Render Unified Ostinato (single track with both high and low)
-    tracks_events[5].append((0, 'program', 49, 0, 5))
-    for ev in ost_events:
-        tracks_events[5].append(ev)
-    specialist_styles.generate_cc_curve(tracks_events[5], 11, 0, len(chord_groups) * 4 * tpb,
-                                         start_val=int(50 + tension * 30), end_val=int(70 + tension * 30), curve_type="sine", ch=5)
+    # ── Track 5: Double Bass (GM 43 Contrabass, Ch 5) ──
+    tracks_events[5].append((0, 'program', 43, 0, 5))
+    current_tick = 0
+    for note, duration in double_bass:
+        dur_ticks = int(duration * tpb)
+        if note is None:
+            current_tick += dur_ticks
+            continue
+        vel_bass = int(60 + tension * 20)
+        stagger = random.randint(-3, 3)
+        on_t = max(0, current_tick + stagger)
+        tracks_events[5].append((on_t, 'on', note, min(127, vel_bass), 5))
+        tracks_events[5].append((current_tick + dur_ticks - 10, 'off', note, 0, 5))
+        specialist_styles.generate_cc_curve(tracks_events[5], 11, current_tick, dur_ticks,
+                                             start_val=50, end_val=vel_bass, curve_type="sine", ch=5)
+        current_tick += dur_ticks
 
-    # Render Piano Melody
-    tracks_events[6].append((0, 'program', 0, 0, 6))
+    # ── Track 6: Unified Ostinato (GM 49 String Ensemble 2, Ch 6) ──
+    tracks_events[6].append((0, 'program', 49, 0, 6))
+    for ev in ost_events:
+        tick, etype, note, velocity, old_ch = ev
+        # Reroute to Ch 6
+        tracks_events[6].append((tick, etype, note, velocity, 6))
+    specialist_styles.generate_cc_curve(tracks_events[6], 11, 0, len(chord_groups) * 4 * tpb,
+                                         start_val=int(50 + tension * 30), end_val=int(70 + tension * 30), curve_type="sine", ch=6)
+
+    # ── Track 7: Piano Melody (GM 0 Acoustic Grand, Ch 7) ──
+    tracks_events[7].append((0, 'program', 0, 0, 7))
     current_tick = 0
     for note, duration in piano_notes:
         dur_ticks = int(duration * tpb)
@@ -2037,11 +2822,27 @@ def generate_quartet_over_midi(filepath, out_dir):
         vel_piano = int(50 + tension * 30)
         if duration <= 0.5:
             vel_piano = max(38, vel_piano - 8)
-        tracks_events[6].append((current_tick, 'on', note, min(112, vel_piano), 6))
-        tracks_events[6].append((current_tick + max(1, dur_ticks - 20), 'off', note, 0, 6))
+        tracks_events[7].append((current_tick, 'on', note, min(112, vel_piano), 7))
+        tracks_events[7].append((current_tick + max(1, dur_ticks - 20), 'off', note, 0, 7))
         current_tick += dur_ticks
 
-    mid = specialist_styles.build_midi_from_events(tracks_events, tpb)
+    # Build VVC Midi tracks from these events
+    vvc_mid = specialist_styles.build_midi_from_events(tracks_events, tpb)
+
+    # Load original MIDI file
+    original_mid = mido.MidiFile(filepath)
+
+    # Combine original tracks and VVC tracks
+    final_mid = mido.MidiFile()
+    final_mid.ticks_per_beat = src_tpb
+
+    # Copy all original tracks
+    for track in original_mid.tracks:
+        final_mid.tracks.append(track)
+
+    # Copy all VVC tracks
+    for track in vvc_mid.tracks:
+        final_mid.tracks.append(track)
 
     # Save
     base = os.path.splitext(os.path.basename(filepath))[0]
@@ -2052,10 +2853,10 @@ def generate_quartet_over_midi(filepath, out_dir):
         fpath = os.path.join(out_dir, f"{fname}_v{idx}.mid")
         idx += 1
 
-    mid.save(fpath)
+    final_mid.save(fpath)
     print(f"\n  [SAVED]  {os.path.basename(fpath)}")
     print(f"  [PATH ]  {fpath}")
-    print("       Tracks: [String Pad] + [Violin I] + [Violin II] + [Viola] + [Cello] + [Unified Ostinato] + [Piano Melody]\n")
+    print("       VVC Tracks (Ch 0-7): Pad | Vln I | Vln II | Viola | Cello | Double Bass | Ostinato | Piano\n")
 
 
 def _generate_cello_core(root_note, bars_data, tension=0.5):
@@ -2593,12 +3394,12 @@ def show_instrument_routing():
     """Display DAW routing guide for generated MIDI files."""
     print("""
   =====================================================================
-    DAW INSTRUMENT ROUTING — VVC String Quartet + Piano
+    DAW INSTRUMENT ROUTING — VVC String Quartet + Piano (Option 1/3)
   =====================================================================
-    The exported MIDI file contains 7 tracks (0-indexed file order):
+    The default generated MIDI file contains 8 tracks:
 
     * Track 0 (Ch 0)  ->  String Ensemble Pad (Harmonic Bed)
-                          - GM Program 48 (String Ensemble 2)
+                          - GM Program 48 (String Ensemble 1)
                           - Voice-led chord progression (root, 3rd, 5th)
                           - Sustains for entire duration of each bar
                           - CC#11 Expression & CC#1 ModWheel swells
@@ -2639,6 +3440,27 @@ def show_instrument_routing():
                           - Sparse-to-active melodic decoration from chord tones
 
   =====================================================================
+    DAW INSTRUMENT ROUTING — MIDI Quartet Overlay (Option 5)
+  =====================================================================
+    The VVC Quartet Overlay contains 8 tracks appended to the original tracks:
+
+    * Track 0 (Ch 0)  ->  String Ensemble Pad (Harmonic Bed)
+                          - GM Program 48 (String Ensemble 1)
+    * Track 1 (Ch 1)  ->  Violin I (Lead Melody)
+                          - GM Program 40 (Violin)
+    * Track 2 (Ch 2)  ->  Violin II (Counter Melody)
+                          - GM Program 40 (Violin)
+    * Track 3 (Ch 3)  ->  Viola (Harmonic Support)
+                          - GM Program 41 (Viola)
+    * Track 4 (Ch 4)  ->  Cello (Bass Line)
+                          - GM Program 42 (Cello)
+    * Track 5 (Ch 5)  ->  Double Bass (Bass Foundation)
+                          - GM Program 43 (Contrabass)
+    * Track 6 (Ch 6)  ->  Unified Ostinato (The Motor)
+                          - GM Program 49 (String Ensemble 2)
+    * Track 7 (Ch 7)  ->  Piano Melody (High Color)
+                          - GM Program 0 (Acoustic Grand Piano)
+
     DAW INSTRUMENT ROUTING — 120-Bar Epic Cinematic Arrangement
   =====================================================================
     Option 4 preserves the user's supplied instrument tracks/channels,
@@ -2678,7 +3500,7 @@ def main():
 ║     String Orchestra Composition Engine                    ║
 ║                                                            ║
 ║    Scales: Major · Minor  |  Mood-Adaptive Progressions    ║
-║    7 Tracks: Quartet + Unified Ostinato + Piano            ║
+║    8 Tracks: Strings + Double Bass + Ostinato + Piano      ║
 ║    Humanized Phrasing  |  MIDI CC Expression Curves        ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝

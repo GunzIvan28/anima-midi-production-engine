@@ -442,8 +442,8 @@ def build_midi(chords, melody, counter, base_tpb=480):
 
     if chords:
         for bar_item in chords:
-            if isinstance(bar_item, list):
-                # Multiple subdivided chords in this bar
+            if isinstance(bar_item, list) and bar_item and isinstance(bar_item[0], (list, tuple)):
+                # Subdivided bar: list of (voicing, duration) tuples
                 cum_time = 0
                 for voicing, dur in bar_item:
                     c_dur = int(dur * tpb)
@@ -454,7 +454,7 @@ def build_midi(chords, melody, counter, base_tpb=480):
                                                   time=c_dur if i == 0 else 0))
                     cum_time = 0
             else:
-                # Legacy whole bar chord
+                # Simple whole-bar voicing: list of ints
                 for n in bar_item:
                     tr_ch.append(mido.Message('note_on', note=n, velocity=68, time=0))
                 for i, n in enumerate(bar_item):

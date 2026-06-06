@@ -39,6 +39,9 @@ try:
     print("  [LOADING] Initializing Spanish Guitar Engine...")
     sg_engine = _load_module('spanish_guitar', 'spanish_guitar.py')
 
+    print("  [LOADING] Initializing Cinematic Engine...")
+    cinematic_engine = _load_module('cinematic', 'cinematic.py')
+
     print("  [SUCCESS] All ANIMA sub-engines loaded successfully.\n")
 except Exception as e:
     print(f"\n  [FATAL ERROR] Failed to load engines: {e}")
@@ -95,6 +98,10 @@ def main():
      7  →  Spanish Guitar Composer
            Bajo · Rasgueado · Alzapua · Picado — 4-track nylon guitar loops.
            Moods: Duende Oscuro, Alma Flamenca, Noche Española, Serenata + more.
+
+     8  →  Modern Cinematic & Ethereal Fantasy Trailer
+           Epic 8-bar procedural arrangements.
+           Moods: Ethereal Gothic, Epic Action, Dark Assassin.
   ____________________________________________________________
      T  →  Toggle Generation Mode [Active: {generation_mode.upper()}]
            Switches between Simple Mode and Double-Layer Decoupled
@@ -183,8 +190,16 @@ def main():
             except Exception as e:
                 print(f"  [ERROR] Spanish Guitar Engine failure: {e}")
 
+        elif choice == '8':
+            print("  Opening Cinematic Trailer Composer...")
+            time.sleep(0.3)
+            try:
+                cinematic_engine.main(out_dir)
+            except Exception as e:
+                print(f"  [ERROR] Cinematic Engine failure: {e}")
+
         else:
-            print("  [!] Invalid choice. Enter 1-7, T, or 0.\n")
+            print("  [!] Invalid choice. Enter 1-8, T, or 0.\n")
 
         _div()
         time.sleep(0.1)
