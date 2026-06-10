@@ -2,14 +2,14 @@
 > **Unified, Mood-Adaptive, Multi-Track MIDI Composition Suite**
 
 ```text
-╔════════════════════════════════════════════════════════════╗
-║                                                            ║
-║      A N I M A   M I D I   P R O D U C T I O N   S U I T E  ║
-║             —  The Complete Composition Engine  —          ║
-║                                                            ║
-║    Mood-Adaptive  |  Multi-Track  |  Unified Orchestration ║
-║                                                            ║
-╚════════════════════════════════════════════════════════════╝
++--------------------------------------------------------------+
+|                                                              |
+|     A N I M A   M I D I   P R O D U C T I O N   S U I T E    |
+|          ---  Master Orchestration Workstation  ---          |
+|                                                              |
+|   Mood-Adaptive  |  Multi-Track  |  Unified Orchestration    |
+|                                                              |
++--------------------------------------------------------------+
 ```
 
 **ANIMA** is a professional-grade command-line MIDI composition suite written in Python. It generates multi-track, humanized MIDI arrangements using pure music theory models, Markov chain voice leading, and mood-adaptive chord progression algorithms. All engines are unified under a single master workstation — `anima-midi-production-engine.py` — accessible from one entry point.
