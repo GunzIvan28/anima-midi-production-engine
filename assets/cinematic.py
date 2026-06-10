@@ -17,7 +17,7 @@ SCALE_PHRYGIAN = [0, 1, 3, 5, 7, 8, 10]
 
 ROOTS = {
     'C': 48, 'C#': 49, 'D': 50, 'Eb': 51, 'E': 52, 'F': 53,
-    'F#': 54, 'G': 55, 'G#': 44, 'A': 45, 'Bb': 46, 'B': 47
+    'F#': 54, 'G': 55, 'G#': 56, 'A': 57, 'Bb': 58, 'B': 59
 }
 
 # ── FULL CINEMATIC CHORD POOL ───────────────────────────────────────────────
@@ -239,72 +239,177 @@ def generate_choir_satb(bars_data, root_val, tpb=480):
             
     return events
 
+def _nearest_short_string_pitch(pc, prev_pitch=None, reg_min=55, reg_max=72):
+    """Resolve a pitch class into a tight professional short-string register."""
+    candidates = [p for p in range(reg_min, reg_max + 1) if p % 12 == pc % 12]
+    if not candidates:
+        return _fit_to_register(pc, reg_min, reg_max)
+    target = prev_pitch if prev_pitch is not None else (reg_min + reg_max) // 2
+    return min(candidates, key=lambda p: (abs(p - target), abs(p - ((reg_min + reg_max) // 2))))
+
+
+def _short_string_cell_pool(bpm, tension):
+    """Return playable 1-beat spiccato/staccato cells for the current tempo."""
+    if bpm < 100:
+        cells = [
+            [(0.0, 0.50, 'root', 'staccato'), (0.5, 0.50, 'fifth', 'staccato')],
+            [(0.0, 0.75, 'root', 'marcato'), (0.75, 0.25, 'third', 'spiccato')],
+            [(0.0, 0.50, 'root', 'staccato'), (0.5, 0.25, 'third', 'spiccato'), (0.75, 0.25, 'fifth', 'spiccato')],
+        ]
+    elif bpm < 132:
+        cells = [
+            [(0.0, 0.50, 'root', 'staccato'), (0.5, 0.25, 'fifth', 'spiccato'), (0.75, 0.25, 'third', 'spiccato')],
+            [(0.0, 0.25, 'root', 'spiccato'), (0.25, 0.25, 'third', 'spiccato'), (0.5, 0.50, 'fifth', 'staccato')],
+            [(0.0, 0.25, 'root', 'spiccato'), (0.25, 0.25, 'fifth', 'spiccato'), (0.5, 0.25, 'root', 'spiccato'), (0.75, 0.25, 'third', 'spiccato')],
+            [(0.0, 0.50, 'root', 'staccato'), (0.5, 0.50, 'root', 'staccato')],
+        ]
+    else:
+        cells = [
+            [(0.0, 0.50, 'root', 'staccato'), (0.5, 0.50, 'fifth', 'staccato')],
+            [(0.0, 0.25, 'root', 'spiccato'), (0.25, 0.25, 'fifth', 'spiccato'), (0.5, 0.50, 'root', 'staccato')],
+            [(0.0, 0.50, 'root', 'staccato'), (0.5, 0.25, 'third', 'spiccato'), (0.75, 0.25, 'fifth', 'spiccato')],
+        ]
+    if tension > 0.72 and bpm < 146:
+        cells.append([(0.0, 0.25, 'root', 'spiccato'), (0.25, 0.25, 'fifth', 'spiccato'),
+                      (0.5, 0.25, 'octave', 'spiccato'), (0.75, 0.25, 'fifth', 'spiccato')])
+    return cells
+
+
 def generate_staccato_ostinato(bars_data, root_val, bpm, tpb=480):
-    """Dynamic, sleek rhythmic ostinato varying by bar and beat."""
+    """
+    Professional short-string ostinato using BPM-aware density, phrase arcs,
+    tight register voice-leading, bow-aware accents, and per-render variation.
+    """
     events = []
-    
-    # Define a pool of sleek 1-beat rhythmic cells
-    # Format: (offset, duration, chord_tone_index)
-    cell_driving = [(0.0, 0.25, 0), (0.25, 0.25, 1), (0.5, 0.25, 2), (0.75, 0.25, 1)]
-    cell_gallop  = [(0.0, 0.5, 0), (0.5, 0.25, 1), (0.75, 0.25, 0)]
-    cell_sync    = [(0.0, 0.25, 0), (0.25, 0.5, 2), (0.75, 0.25, 1)]
-    cell_pedal   = [(0.0, 0.25, 0), (0.25, 0.25, 0), (0.5, 0.25, 0), (0.75, 0.25, 0)]
-    
-    for bar_idx, (ct, _) in enumerate(bars_data):
+    cell_pool = _short_string_cell_pool(bpm, tension=0.72)
+    phrase_arcs = random.choice([
+        [0.72, 0.88, 1.06, 0.82],
+        [0.66, 0.92, 0.96, 1.10],
+        [0.78, 0.84, 1.12, 0.74],
+    ])
+    motif = [random.choice(cell_pool) for _ in range(4)]
+    prev_pitch = None
+
+    for bar_idx, (ct, sc) in enumerate(bars_data):
         bar_start = bar_idx * 4 * tpb
-        
+        ct_pcs = [(root_val + tone) % 12 for tone in ct]
+        scale_pcs = [(root_val + tone) % 12 for tone in sc]
+        phrase_energy = phrase_arcs[bar_idx % len(phrase_arcs)]
+
         for beat in range(4):
-            # Dynamically select cell based on the beat to create sleek, breathing motion
             if beat == 0:
-                cell = cell_driving
-            elif beat == 1:
-                cell = cell_gallop if random.random() > 0.5 else cell_driving
-            elif beat == 2:
-                cell = cell_sync
+                cell = motif[0]
+            elif beat == 3 and phrase_energy < 0.85 and random.random() < 0.55:
+                cell = [(0.0, 0.50, 'root', 'staccato')]
             else:
-                cell = cell_pedal if bar_idx % 2 == 0 else cell_driving
-                
-            for offset, dur, ct_idx in cell:
-                tick = bar_start + int(beat * tpb) + int(offset * tpb)
-                dur_ticks = int(dur * tpb)
-                
-                pc = (root_val + ct[ct_idx % len(ct)]) % 12
-                pitch = _fit_to_register(pc, 55, 72)
-                
-                # Dynamic velocity for sleekness
-                if offset == 0.0:
-                    vel = random.randint(105, 115) # Downbeat accent
-                elif offset == 0.5:
-                    vel = random.randint(95, 105)  # Upbeat accent
+                cell = random.choice([motif[beat % 4], random.choice(cell_pool)])
+
+            if phrase_energy > 1.0 and random.random() < 0.22:
+                cell = random.choice(cell_pool)
+
+            for step_idx, (offset, dur, role, articulation) in enumerate(cell):
+                if phrase_energy < 0.78 and beat in (1, 3) and random.random() < 0.35:
+                    continue
+
+                if role == 'root':
+                    pc = ct_pcs[0]
+                elif role == 'third':
+                    pc = ct_pcs[1 % len(ct_pcs)]
+                elif role == 'fifth':
+                    pc = ct_pcs[2 % len(ct_pcs)]
+                elif role == 'octave':
+                    pc = ct_pcs[0]
                 else:
-                    vel = random.randint(75, 85)   # Soft 16ths
-                    
+                    pc = random.choice(scale_pcs)
+
+                pitch = _nearest_short_string_pitch(pc, prev_pitch, 55, 72)
+                if prev_pitch is not None and abs(pitch - prev_pitch) > 7:
+                    pitch = _nearest_short_string_pitch(pc, prev_pitch, 55, 67 if prev_pitch < 67 else 72)
+                prev_pitch = pitch
+
+                tick = bar_start + beat * tpb + int(offset * tpb)
+                jitter = 0 if beat == 0 and offset == 0.0 else random.randint(-6, 7)
+                tick = max(bar_start, tick + jitter)
+                dur_ticks = int(dur * tpb)
+                gate = {'spiccato': 0.42, 'staccato': 0.58, 'marcato': 0.76}.get(articulation, 0.52)
+                off_tick = tick + max(18, int(dur_ticks * gate) - random.randint(0, 8))
+
+                bow_is_down = (beat * 4 + step_idx) % 2 == 0
+                vel = int(70 + 28 * phrase_energy)
+                if beat in (0, 2) and offset == 0.0:
+                    vel += 12 if bow_is_down else 7
+                elif offset == 0.0:
+                    vel += 5
+                else:
+                    vel += -8 if not bow_is_down else -3
+                vel += random.randint(-5, 5)
+                vel = max(48, min(118, vel))
+
                 events.append((tick, 'on', pitch, vel))
-                events.append((tick + max(1, dur_ticks - 5), 'off', pitch, 0))
+                events.append((off_tick, 'off', pitch, 0))
     return events
 
 def generate_harp_arpeggios(bars_data, root_val, tpb=480):
-    """Cascading 16th note fingerpicked arpeggios crossing octaves (MIDI 60-84)."""
+    """
+    Impressionist harp figure -- sparse, breath-driven, harmonically clear.
+
+    Design principles:
+      * 8th-note / dotted-8th grid -- no relentless 16th-note waterfalls.
+      * Each beat gets a 3-note ascending figure (root -> 3rd -> 5th) in a
+        sigh shape: long onset, short middle, short tail  (offsets 0, 0.5, 0.75).
+      * Beats 2 and 4 have a 40 % chance of being silent (breathing room).
+      * Single warm register MIDI 60-79 (C4-G5) -- no random octave hops.
+      * Gentle velocity arch per bar: soft open -> peak on beat 3 -> soft close.
+      * Small human jitter +/- 8 ticks per note-on.
+    """
+    HAR_MIN = 60   # C4
+    HAR_MAX = 79   # G5
+
+    # Offsets within a beat for the 3-note sigh figure (in beat fractions)
+    #  0.0  = downbeat of the beat  (long)
+    #  0.5  = halfway through       (short)
+    #  0.75 = three-quarter         (short tail)
+    FIGURE_OFFSETS   = [0.0, 0.5, 0.75]
+    FIGURE_CT_IDX    = [0,   1,   2   ]   # root, 3rd, 5th
+    FIGURE_DURATIONS = [int(0.45 * tpb),
+                        int(0.22 * tpb),
+                        int(0.20 * tpb)]
+
+    # Velocity envelope shape across the 4 beats of a bar
+    # [beat0, beat1, beat2, beat3]  --  peak on beat 2 (0-indexed)
+    VEL_SHAPE = [62, 58, 74, 60]
+
     events = []
-    pattern = [
-        (0.0, 0, 0), (0.25, 1, 0), (0.5, 2, 0), (0.75, 0, 1),
-        (1.0, 1, 1), (1.25, 0, 1), (1.5, 2, 0), (1.75, 1, 0)
-    ]
+
     for bar_idx, (ct, _) in enumerate(bars_data):
         bar_start = bar_idx * 4 * tpb
-        for half_bar in range(2): 
-            start_tick = bar_start + half_bar * 2 * tpb
-            for offset, ct_idx, octave_shift in pattern:
-                tick = start_tick + int(offset * tpb)
-                dur_ticks = int(0.25 * tpb)
-                
-                pc = (root_val + ct[ct_idx % len(ct)]) % 12
-                base_pitch = _fit_to_register(pc, 55, 67)
-                pitch = base_pitch + (octave_shift * 12)
-                
-                vel = random.randint(70, 95)
-                events.append((tick, 'on', pitch, vel))
-                events.append((tick + dur_ticks - 5, 'off', pitch, 0))
+
+        for beat in range(4):
+            # Skip beat (40 % chance) on the weaker beats 1 and 3 (0-indexed)
+            if beat in (1, 3) and random.random() < 0.40:
+                continue
+
+            beat_tick  = bar_start + beat * tpb
+            base_vel   = VEL_SHAPE[beat]
+
+            for fig_i, (frac_off, ct_idx, dur_ticks) in enumerate(
+                    zip(FIGURE_OFFSETS, FIGURE_CT_IDX, FIGURE_DURATIONS)):
+
+                # Human jitter: +/- 8 ticks
+                jitter   = random.randint(-8, 8)
+                tick_on  = beat_tick + int(frac_off * tpb) + jitter
+                tick_off = tick_on + dur_ticks
+
+                # Resolve pitch class into the warm register
+                pc    = (root_val + ct[ct_idx % len(ct)]) % 12
+                pitch = _fit_to_register(pc, HAR_MIN, HAR_MAX)
+
+                # Slight velocity variation around the beat's base level
+                vel = max(40, min(110, base_vel + random.randint(-6, 6)))
+
+                events.append((tick_on,  'on',  pitch, vel))
+                events.append((tick_off, 'off', pitch, 0))
+
     return events
 
 def generate_heavy_brass(bars_data, root_val, tpb=480):
@@ -347,182 +452,81 @@ def generate_piano_melody(bars_data, root_val, tpb=480):
             
     return events
 
-def get_chord_tones_in_window(ct_raw, root_val, w_min, w_max):
-    """Extract all chord tones of the current chord mapped to the octave window."""
-    tones = []
-    for offset in ct_raw:
-        pc = (root_val + offset) % 12
-        p = w_min + ((pc - w_min) % 12)
-        while p <= w_max:
-            tones.append(p)
-            p += 12
-    return sorted(list(set(tones)))
-
-def get_scale_tones_in_window(scale_deg, root_val, w_min, w_max):
-    """Extract all scale degrees of the current key/scale mapped to the octave window."""
-    tones = []
-    for deg in scale_deg:
-        pc = (root_val + deg) % 12
-        p = w_min + ((pc - w_min) % 12)
-        while p <= w_max:
-            tones.append(p)
-            p += 12
-    return sorted(list(set(tones)))
-
-def generate_melody_pitches(bars_data, root_val):
-    """Uses DFS search with backtracking and fallbacks to generate melody pitches matching constraints."""
-    octave_min = root_val + 12
-    octave_max = root_val + 24
-    
-    bar_ct = []
-    bar_st = []
-    for ct_raw, scale_deg in bars_data:
-        ct = get_chord_tones_in_window(ct_raw, root_val, octave_min, octave_max)
-        st = get_scale_tones_in_window(scale_deg, root_val, octave_min, octave_max)
-        bar_ct.append(ct)
-        bar_st.append(st)
-        
-    note_to_bar = [0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3]
-    # 9 chord tones, 4 scale tones (mostly chord tones)
-    is_ct = [True, False, True, True, False, True, True, False, True, True, True, False, True]
-    
-    # 6 fallback levels to ensure a solution is always found:
-    for level in range(6):
-        solutions = []
-        
-        def dfs(index, current_path, leap_count):
-            if len(solutions) >= 50:
-                return
-            
-            # Prune early to save search time:
-            # Check contour of A (first vs second bar) as soon as index 6 is reached
-            if index == 6:
-                # Require at least 2 distinct notes in the core 3-note idea (Phrase A)
-                if len(set(current_path[0:3])) < 2:
-                    return
-                
-                sign_A1 = 1 if current_path[1] > current_path[0] else (-1 if current_path[1] < current_path[0] else 0)
-                sign_A2 = 1 if current_path[2] > current_path[1] else (-1 if current_path[2] < current_path[1] else 0)
-                sign_A_bar2_1 = 1 if current_path[4] > current_path[3] else (-1 if current_path[4] < current_path[3] else 0)
-                sign_A_bar2_2 = 1 if current_path[5] > current_path[4] else (-1 if current_path[5] < current_path[4] else 0)
-                if sign_A1 != sign_A_bar2_1 or sign_A2 != sign_A_bar2_2:
-                    return
-            
-            if index == 13:
-                # 1. Check leaps
-                if level < 4:
-                    if leap_count != 1:
-                        return
-                else:
-                    if leap_count == 0:
-                        return
-                
-                # 2. Check within one octave
-                if max(current_path) - min(current_path) > 12:
-                    return
-                
-                # 3. Check contour of A' (level 0 requires match)
-                sign_A1 = 1 if current_path[1] > current_path[0] else (-1 if current_path[1] < current_path[0] else 0)
-                sign_A2 = 1 if current_path[2] > current_path[1] else (-1 if current_path[2] < current_path[1] else 0)
-                if level == 0:
-                    sign_A_prime1 = 1 if current_path[11] > current_path[10] else (-1 if current_path[11] < current_path[10] else 0)
-                    sign_A_prime2 = 1 if current_path[12] > current_path[11] else (-1 if current_path[12] < current_path[11] else 0)
-                    if sign_A_prime1 != sign_A1 or sign_A_prime2 != sign_A2:
-                        return
-                
-                # 4. Check climax uniqueness and position
-                max_pitch = max(current_path)
-                max_count = current_path.count(max_pitch)
-                if level < 2:
-                    if max_count != 1:
-                        return
-                else:
-                    if max_count > 2:
-                        return
-                
-                climax_index = current_path.index(max_pitch)
-                if level < 3:
-                    if climax_index < 6: # must be in bar 3 or 4
-                        return
-                else:
-                    if climax_index < 3: # must be in bar 2, 3 or 4
-                        return
-                
-                solutions.append(current_path.copy())
-                return
-            
-            b = note_to_bar[index]
-            cands = list(bar_ct[b] if is_ct[index] else bar_st[b])
-            
-            # Shuffle candidates for diversity and randomized DFS paths
-            random.shuffle(cands)
-            
-            for p in cands:
-                if index == 0:
-                    dfs(index + 1, current_path + [p], 0)
-                else:
-                    prev_p = current_path[-1]
-                    interval = abs(p - prev_p)
-                    
-                    if interval in (5, 7, 8, 12):
-                        dfs(index + 1, current_path + [p], leap_count + 1)
-                    elif interval in (0, 1, 2, 3, 4):
-                        dfs(index + 1, current_path + [p], leap_count)
-                        
-        dfs(0, [], 0)
-        if solutions:
-            return random.choice(solutions)
-            
-    # Absolute fallback: construct a simple arpeggio/scale
-    fallback_path = []
-    for k in range(13):
-        b = note_to_bar[k]
-        ct = bar_ct[b]
-        fallback_path.append(ct[k % len(ct)])
-    return fallback_path
-
-def generate_melody(bars_data, root_val, tpb=480):
+def generate_chord_pad(bars_data, root_val, tpb=480):
     """
-    Generates a 4-bar vocal-like melody (Violin/Piano/Theremin)
-    staying within 1 octave, containing 1 defining leap,
-    A-A-B-A' structure, and a unique climax note.
+    Lush sustained chord pad with voice-leading through inversions.
+
+    Algorithm per bar:
+      1. Compute all pitch classes for the bar's chord.
+      2. Build every inversion (rotate PC list so each chord tone can be bass).
+      3. For each inversion, stack voices upward within MIDI 52–76
+         (E3–E5 — the warm orchestral mid-range) using the smallest
+         ascending interval to the next PC, avoiding unisons.
+      4. Pick the inversion whose total voice-movement from the
+         previous bar's voicing is smallest (nearest-pitch globally).
+      5. Emit sustained whole-bar notes with a 25-tick breath gap.
     """
-    pitches = generate_melody_pitches(bars_data, root_val)
-    
-    # Note timings: (bar_index, beat_offset, beat_duration)
-    note_timing = [
-        # Bar 1 (A)
-        (0, 0.0, 1.0), (0, 1.0, 1.0), (0, 2.0, 2.0),
-        # Bar 2 (A)
-        (1, 0.0, 1.0), (1, 1.0, 1.0), (1, 2.0, 2.0),
-        # Bar 3 (B)
-        (2, 0.0, 1.0), (2, 1.0, 1.0), (2, 2.0, 1.0), (2, 3.0, 1.0),
-        # Bar 4 (A')
-        (3, 0.0, 1.0), (3, 1.0, 1.0), (3, 2.0, 2.0)
-    ]
-    
-    max_p = max(pitches)
-    climax_idx = pitches.index(max_p)
-    
-    events = []
-    for k, p in enumerate(pitches):
-        bar_idx, beat_offset, beat_duration = note_timing[k]
-        
-        tick_start = bar_idx * 4 * tpb + int(beat_offset * tpb)
-        dur_ticks = int(beat_duration * tpb)
-        
-        # Expressive velocity
-        if k == climax_idx:
-            vel = 118  # Strong climax accent
-        elif beat_offset == 0.0:
-            vel = 105  # Downbeat accent
+    PAD_MIN = 52   # E3  — bottom of the warm orchestral range
+    PAD_MAX = 76   # E5  — top of the comfortable pad range
+
+    events     = []
+    prev_voicing = None
+
+    for bar_idx, (ct, _) in enumerate(bars_data):
+        bar_start = bar_idx * 4 * tpb
+        ct_pcs    = [(root_val + offset) % 12 for offset in ct]
+
+        # ── Build one voicing per inversion ──────────────────────────────
+        voicing_candidates = []
+        for inv in range(len(ct_pcs)):
+            rotated = ct_pcs[inv:] + ct_pcs[:inv]   # rotate so inv-th PC is bass
+
+            bass_pc = rotated[0]
+            bass_p  = PAD_MIN + ((bass_pc - PAD_MIN) % 12)
+            if bass_p > PAD_MAX:
+                continue
+
+            voicing = [bass_p]
+            for pc in rotated[1:]:
+                prev_p = voicing[-1]
+                step   = (pc - prev_p) % 12
+                if step == 0:
+                    step = 12          # avoid unison — go up one octave
+                next_p = prev_p + step
+                if next_p > PAD_MAX:
+                    break
+                voicing.append(next_p)
+
+            if len(voicing) >= 2:
+                voicing_candidates.append(voicing)
+
+        # Fallback: place each PC in register, take lowest three
+        if not voicing_candidates:
+            fb = sorted(set(
+                PAD_MIN + ((pc - PAD_MIN) % 12)
+                for pc in ct_pcs
+            ))
+            voicing_candidates = [fb[:3]]
+
+        # ── Select inversion with minimum total voice movement ───────────────
+        if prev_voicing is None:
+            best = voicing_candidates[0]   # root position for bar 1
         else:
-            vel = random.randint(85, 95)
-            
-        events.append((tick_start, 'on', p, vel))
-        events.append((tick_start + dur_ticks - 10, 'off', p, 0))
-        
+            def cost(v):
+                return sum(min(abs(p - q) for q in prev_voicing) for p in v)
+            best = min(voicing_candidates, key=cost)
+
+        prev_voicing = best
+
+        # ── Emit sustained notes ───────────────────────────────────────
+        dur_ticks = 4 * tpb - 25      # full bar with 25-tick breath gap
+        vel       = random.randint(72, 82)
+        for pitch in best:
+            events.append((bar_start,              'on',  pitch, vel))
+            events.append((bar_start + dur_ticks,  'off', pitch, 0))
+
     return events
+
 
 # ── MAJOR-SPECIFIC GENERATORS ────────────────────────────────────────────────
 
@@ -669,13 +673,13 @@ def compose_cinematic_track(mood_id, bpm, root_name, root_val):
     sub_bass = generate_sub_bass(bars_data, root_val, tpb)
     staccato = generate_staccato_ostinato(bars_data, root_val, bpm, tpb)
     drone    = generate_drone(bars_data, root_val, tpb)
-    melody   = generate_melody(bars_data, root_val, tpb)
+    chord_pad = generate_chord_pad(bars_data, root_val, tpb)
     
     ch = 0
+    build_track(mid, "Chord Pad", 89, ch, chord_pad); ch += 1
     build_track(mid, "Sub Bass", 43, ch, sub_bass); ch += 1
     build_track(mid, "High Drone", 48, ch, drone); ch += 1
-    build_track(mid, "Staccato Strings", 48, ch, staccato); ch += 1
-    build_track(mid, "Melody", 40, ch, melody); ch += 1
+    build_track(mid, "Staccato / Spiccato Strings", 48, ch, staccato); ch += 1
     
     # Generate Mood-Specific Tracks
     if mood_id == 1:
@@ -691,23 +695,30 @@ def compose_cinematic_track(mood_id, bpm, root_name, root_val):
         build_track(mid, "Piano Melody", 0, ch, piano); ch += 1
         
     elif mood_id == 2:
-        # Epic Heroic Action: Heavy Brass, Choir
+        # Epic Heroic Action: Heavy Brass, Choir, Piano
         mood_name = "Epic Heroic Action"
         brass = generate_heavy_brass(bars_data, root_val, tpb)
         choir_satb = generate_choir_satb(bars_data, root_val, tpb)
+        piano = generate_piano_melody(bars_data, root_val, tpb)
         
         build_track(mid, "Heavy Brass", 61, ch, brass); ch += 1
         for voice in ['bass', 'tenor', 'alto', 'soprano']:
             build_track(mid, f"Choir - {voice.capitalize()}", 52, ch, choir_satb[voice]); ch += 1
+        build_track(mid, "Piano Melody", 0, ch, piano); ch += 1
         
     else:
-        # Dark Assassin Stealth: Harp/Guitar, Sparse Piano
+        # Dark Assassin Stealth: Harp/Guitar, Sparse Piano, Choir, Piano Melody
         mood_name = "Dark Assassin Stealth"
         harp  = generate_harp_arpeggios(bars_data, root_val, tpb)
+        dark_piano = generate_piano_melody(bars_data, root_val, tpb)
+        choir_satb = generate_choir_satb(bars_data, root_val, tpb)
         piano = generate_piano_melody(bars_data, root_val, tpb)
         
         build_track(mid, "Nylon Guitars", 24, ch, harp); ch += 1
-        build_track(mid, "Dark Piano", 0, ch, piano); ch += 1
+        build_track(mid, "Dark Piano", 0, ch, dark_piano); ch += 1
+        for voice in ['bass', 'tenor', 'alto', 'soprano']:
+            build_track(mid, f"Choir - {voice.capitalize()}", 52, ch, choir_satb[voice]); ch += 1
+        build_track(mid, "Piano Melody", 0, ch, piano); ch += 1
         
     return mid, mood_name, prog_label
 
@@ -716,8 +727,8 @@ def compose_cinematic_major_track(mood_id, bpm, root_name, root_val):
     Generates a 4-bar major-key cinematic MIDI.
     Track counts mirror the minor engine exactly:
       Mood 1 (Triumphant Ascent)  — 10 tracks
-      Mood 2 (Celestial Wonder)   —  9 tracks
-      Mood 3 (Golden Pastoral)    —  6 tracks
+      Mood 2 (Celestial Wonder)   — 10 tracks
+      Mood 3 (Golden Pastoral)    — 11 tracks
     """
     tpb = 480
     mid = mido.MidiFile(ticks_per_beat=tpb)
@@ -741,13 +752,13 @@ def compose_cinematic_major_track(mood_id, bpm, root_name, root_val):
     sub_bass = generate_sub_bass(bars_data, root_val, tpb)
     staccato = generate_staccato_ostinato(bars_data, root_val, bpm, tpb)
     drone    = generate_drone(bars_data, root_val, tpb)
-    melody   = generate_melody(bars_data, root_val, tpb)   # DFS adapts to major ct
+    chord_pad = generate_chord_pad(bars_data, root_val, tpb)   # DFS adapts to major ct
 
     ch = 0
-    build_track(mid, "Sub Bass",        43, ch, sub_bass); ch += 1
-    build_track(mid, "High Drone",      48, ch, drone);    ch += 1
-    build_track(mid, "Staccato Strings",48, ch, staccato); ch += 1
-    build_track(mid, "Melody",          40, ch, melody);   ch += 1
+    build_track(mid, "Chord Pad",        89, ch, chord_pad); ch += 1
+    build_track(mid, "Sub Bass",         43, ch, sub_bass); ch += 1
+    build_track(mid, "High Drone",       48, ch, drone);    ch += 1
+    build_track(mid, "Staccato / Spiccato Strings", 48, ch, staccato); ch += 1
 
     # ── Mood-specific tracks ─────────────────────────────────────────────────
     if mood_id == 1:
@@ -763,23 +774,30 @@ def compose_cinematic_major_track(mood_id, bpm, root_name, root_val):
         build_track(mid, "Piano Melody", 0, ch, piano); ch += 1
 
     elif mood_id == 2:
-        # Celestial Wonder: Celesta Arps + SATB Choir  (9 tracks)
+        # Celestial Wonder: Celesta Arps + SATB Choir + Piano  (10 tracks)
         mood_name  = "Celestial Wonder"
         celesta    = generate_celesta_arpeggios(bars_data, root_val, tpb)
         choir_satb = generate_choir_satb(bars_data, root_val, tpb)
+        piano      = generate_piano_melody(bars_data, root_val, tpb)
 
         build_track(mid, "Celesta Arps", 8, ch, celesta); ch += 1   # GM 8 = Celesta
         for voice in ['bass', 'tenor', 'alto', 'soprano']:
             build_track(mid, f"Choir - {voice.capitalize()}", 52, ch, choir_satb[voice]); ch += 1
+        build_track(mid, "Piano Melody", 0, ch, piano); ch += 1
 
     else:
-        # Golden Pastoral: Harp Arps + Woodwind Lead  (6 tracks)
+        # Golden Pastoral: Harp Arps + Woodwind Lead + Choir + Piano  (11 tracks)
         mood_name = "Golden Pastoral"
         harp      = generate_harp_arpeggios(bars_data, root_val, tpb)
         woodwind  = generate_woodwind_lead(bars_data, root_val, tpb)
+        choir_satb = generate_choir_satb(bars_data, root_val, tpb)
+        piano     = generate_piano_melody(bars_data, root_val, tpb)
 
         build_track(mid, "Pastoral Harp",   46, ch, harp);     ch += 1  # GM 46 = Harp
         build_track(mid, "Woodwind Lead",   73, ch, woodwind); ch += 1  # GM 73 = Flute
+        for voice in ['bass', 'tenor', 'alto', 'soprano']:
+            build_track(mid, f"Choir - {voice.capitalize()}", 52, ch, choir_satb[voice]); ch += 1
+        build_track(mid, "Piano Melody", 0, ch, piano); ch += 1
 
     return mid, mood_name, prog_label
 
@@ -820,13 +838,13 @@ def main(out_dir='midi_files'):
     if is_major:
         print("\n  Select Major Cinematic Mood:")
         print("    1 -> Triumphant Ascent  (Full brass fanfare, SATB choir, piano — 10 tracks)")
-        print("    2 -> Celestial Wonder   (Lydian celesta arps, SATB choir         —  9 tracks)")
-        print("    3 -> Golden Pastoral    (Pastoral harp, flute woodwind            —  6 tracks)")
+        print("    2 -> Celestial Wonder   (Lydian celesta arps, SATB choir, piano — 10 tracks)")
+        print("    3 -> Golden Pastoral    (Harp, flute, SATB choir, piano         — 11 tracks)")
     else:
         print("\n  Select Minor Cinematic Mood:")
         print("    1 -> Ethereal Gothic Fantasy (Harps, SATB choir, piano    — 10 tracks)")
-        print("    2 -> Epic Heroic Action      (Heavy brass, SATB choir     —  9 tracks)")
-        print("    3 -> Dark Assassin Stealth   (Nylon guitars, dark piano   —  6 tracks)")
+        print("    2 -> Epic Heroic Action      (Heavy brass, SATB choir, piano — 10 tracks)")
+        print("    3 -> Dark Assassin Stealth   (Nylon guitars, dark piano, SATB choir, piano — 11 tracks)")
     mood_str = input("  --> ").strip()
     mood_id  = int(mood_str) if mood_str in ('1', '2', '3') else 1
 

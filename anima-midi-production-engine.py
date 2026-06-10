@@ -1,6 +1,7 @@
+# -*- coding: utf-8 -*-
 """
 ANIMA MIDI MUSIC PRODUCTION ENGINE
-— Master Orchestration Workstation —
+-- Master Orchestration Workstation --
 Unifies the Minor Scale Engine, Major Scale Engine, and VVC Orchestral Arranger
 into a single premium composition portal.
 """
@@ -8,10 +9,12 @@ into a single premium composition portal.
 import os
 import sys
 import time
+import random
 import importlib.util
 
-# ── SYSTEM PATH SETUP ────────────────────────────────────────────────────────
-# Append assets folder to system path to ensure clean internal imports.
+# ================================================================
+# SYSTEM PATH SETUP
+# ================================================================
 assets_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'assets'))
 if assets_dir not in sys.path:
     sys.path.append(assets_dir)
@@ -29,10 +32,10 @@ def _load_module(module_name, filename):
 try:
     print("  [LOADING] Initializing Minor Scale Engine...")
     minor_engine = _load_module('minor_chord_generatory', 'minor-chord-generatory.py')
-    
+
     print("  [LOADING] Initializing Major Scale Engine...")
     major_engine = _load_module('major_chord_generatory', 'major-chord-generatory.py')
-    
+
     print("  [LOADING] Initializing VVC Orchestration Engine...")
     vvc_engine = _load_module('VVC', 'VVC.py')
 
@@ -47,8 +50,324 @@ except Exception as e:
     print(f"\n  [FATAL ERROR] Failed to load engines: {e}")
     sys.exit(1)
 
+
 def _div(char='-', w=62):
     print(char * w)
+
+
+def _pause():
+    input("  Press [Enter] to return...")
+
+
+def _propagate_generation_mode(generation_mode):
+    minor_engine.GENERATION_MODE = generation_mode
+    major_engine.GENERATION_MODE = generation_mode
+    vvc_engine.GENERATION_MODE = generation_mode
+    sg_engine.GENERATION_MODE = generation_mode
+
+
+def _prompt_midi_path(prompt="  Enter path to MIDI file: "):
+    filepath = input(prompt).strip().strip('"').strip("'")
+    if not os.path.isfile(filepath):
+        print(f"  [ERROR] File not found: {filepath}")
+        return None
+    return filepath
+
+
+def _select_cinematic_key(is_major):
+    available_keys = sorted(list(cinematic_engine.ROOTS.keys()))
+    tonality_label = "Major" if is_major else "Minor"
+    enharmonics = {
+        'Db': 'C#', 'D#': 'Eb', 'Gb': 'F#', 'A#': 'Bb', 'Ab': 'G#',
+    }
+
+    print(f"\n  Select {tonality_label} Key (Available: {', '.join(available_keys)}):")
+    root_name_raw = input("  --> ").strip()
+    if len(root_name_raw) >= 1:
+        root_name = root_name_raw[0].upper() + root_name_raw[1:]
+    else:
+        root_name = 'C' if is_major else 'D'
+
+    root_name = enharmonics.get(root_name, root_name)
+    if root_name not in cinematic_engine.ROOTS:
+        root_name = 'C' if is_major else 'D'
+    return root_name, cinematic_engine.ROOTS[root_name]
+
+
+def _select_cinematic_bpm(is_major):
+    print("\n  Select Tempo (BPM) [e.g. 100, 120, 140]:")
+    bpm_str = input("  --> ").strip()
+    try:
+        return int(bpm_str)
+    except ValueError:
+        return 120 if is_major else 110
+
+
+def _save_cinematic_mid(mid, out_dir, mood_name, root_name, tonality_label, bpm, prog_label):
+    adjectives = [
+        "Apex", "Infinite", "Midnight", "Titan", "Solar", "Gothic", "Ethereal", "Grim",
+        "Silent", "Shadow", "Crimson", "Nebula", "Spectral", "Cosmic", "Lost", "Fallen",
+        "Eternal", "Frozen", "Abyssal", "Radiant", "Iron", "Storm", "Phoenix", "Astral",
+        "Mystic", "Ancient", "Vortex", "Golden", "Obsidian", "Celestial", "Wounded",
+    ]
+    nouns = [
+        "Ascent", "Requiem", "Odyssey", "Eclipse", "Horizon", "Empire", "Sanctuary",
+        "Vanguard", "Echo", "Whisper", "Rift", "Conquest", "Genesis", "Destiny", "Void",
+        "Valhalla", "Covenant", "Chronicle", "Legacy", "Bastion", "Rebirth", "Summit",
+        "Oracle", "Wasteland", "Mirage", "Lament", "Citadel", "Overture", "Pilgrimage",
+    ]
+    project_title = f"{random.choice(adjectives)}_{random.choice(nouns)}"
+    fname = (
+        f"{project_title}__Cinematic_{mood_name.replace(' ', '_')}__{root_name}"
+        f"_{tonality_label}__{bpm}BPM__{prog_label}"
+    )
+    fpath = os.path.join(out_dir, fname + ".mid")
+    idx = 1
+    while os.path.exists(fpath):
+        fpath = os.path.join(out_dir, f"{fname}_v{idx}.mid")
+        idx += 1
+    mid.save(fpath)
+    print(f"\n  [SAVED]  {os.path.basename(fpath)}")
+    print(f"  [PATH ]  {fpath}\n")
+
+
+def _run_cinematic_direct(out_dir, is_major=None):
+    if is_major is None:
+        is_major = random.choice([True, False])
+        print(f"  Surprise tonality: {'Major' if is_major else 'Minor'}")
+
+    if is_major:
+        print("\n  Select Major Cinematic Mood:")
+        print("    1 -> Triumphant Ascent")
+        print("    2 -> Celestial Wonder")
+        print("    3 -> Golden Pastoral")
+    else:
+        print("\n  Select Minor Cinematic Mood:")
+        print("    1 -> Ethereal Gothic Fantasy")
+        print("    2 -> Epic Heroic Action")
+        print("    3 -> Dark Assassin Stealth")
+
+    mood_str = input("  --> ").strip()
+    mood_id = int(mood_str) if mood_str in ('1', '2', '3') else random.randint(1, 3)
+    root_name, root_val = _select_cinematic_key(is_major)
+    bpm = _select_cinematic_bpm(is_major)
+
+    print("\n  [GENERATING] Composing cinematic arrangement...")
+    if is_major:
+        mid, mood_name, prog_label = cinematic_engine.compose_cinematic_major_track(mood_id, bpm, root_name, root_val)
+        tonality_label = "Major"
+    else:
+        mid, mood_name, prog_label = cinematic_engine.compose_cinematic_track(mood_id, bpm, root_name, root_val)
+        tonality_label = "Minor"
+
+    _save_cinematic_mid(mid, out_dir, mood_name, root_name, tonality_label, bpm, prog_label)
+
+
+def _run_generate_new_midi(out_dir):
+    while True:
+        print("""
+GENERATE NEW MIDI
+
+  1 -> Minor Scale Engine
+  2 -> Major Scale Engine
+  3 -> VVC String Quartet Engine
+  4 -> Surprise Me
+  B -> Back
+""")
+        _div()
+        choice = input("  --> ").strip().lower()
+        _div('=')
+
+        if choice == 'b':
+            return
+        try:
+            if choice == '1':
+                print("  Opening Minor Scale Engine...")
+                minor_engine.main()
+            elif choice == '2':
+                print("  Opening Major Scale Engine...")
+                major_engine.main()
+            elif choice == '3':
+                print("  Opening VVC String Quartet Engine...")
+                vvc_engine.main()
+            elif choice == '4':
+                random.choice([minor_engine.main, major_engine.main, vvc_engine.main])()
+            else:
+                print("  [!] Invalid choice. Enter 1-4 or B.\n")
+        except Exception as e:
+            print(f"  [ERROR] Engine failure: {e}")
+
+
+def _run_existing_midi_menu(out_dir):
+    while True:
+        print("""
+WORK WITH EXISTING MIDI
+
+  1 -> Add String Quartet Overlay
+  2 -> Expand 4-Bar MIDI to 120-Bar Arrangement
+  3 -> Add Choir to Existing MIDI
+  4 -> Analyze MIDI Key / Tempo
+  B -> Back
+""")
+        _div()
+        choice = input("  --> ").strip().lower()
+        _div('=')
+
+        if choice == 'b':
+            return
+        if choice not in ('1', '2', '3', '4'):
+            print("  [!] Invalid choice. Enter 1-4 or B.\n")
+            continue
+
+        filepath = _prompt_midi_path()
+        if not filepath:
+            continue
+
+        try:
+            if choice == '1':
+                vvc_engine.generate_quartet_over_midi(filepath, out_dir)
+            elif choice == '2':
+                vvc_engine.generate_120bar_arrangement_from_midi(filepath, out_dir)
+            elif choice == '3':
+                vvc_engine.generate_choir_over_midi(filepath, out_dir)
+            elif choice == '4':
+                chord_groups, _ = vvc_engine.parse_midi_chords(filepath)
+                if not chord_groups:
+                    print("  [ERROR] No chord groups detected.")
+                else:
+                    root_name, _, _, scale_name, is_minor = vvc_engine.detect_key(chord_groups)
+                    bpm = vvc_engine.detect_tempo(filepath)
+                    print(f"\n  Key      : {root_name} {scale_name}")
+                    print(f"  Tonality : {'Minor' if is_minor else 'Major'}")
+                    print(f"  BPM      : {bpm}\n")
+        except Exception as e:
+            print(f"  [ERROR] Existing-MIDI task failed: {e}")
+
+
+def _run_cinematic_menu(out_dir):
+    while True:
+        print("""
+CINEMATIC TRAILER ENGINE
+
+  1 -> Minor Cinematic Cue
+  2 -> Major Cinematic Cue
+  3 -> Surprise Cinematic Cue
+  B -> Back
+""")
+        _div()
+        choice = input("  --> ").strip().lower()
+        _div('=')
+
+        try:
+            if choice == 'b':
+                return
+            elif choice == '1':
+                _run_cinematic_direct(out_dir, is_major=False)
+            elif choice == '2':
+                _run_cinematic_direct(out_dir, is_major=True)
+            elif choice == '3':
+                _run_cinematic_direct(out_dir, is_major=None)
+            else:
+                print("  [!] Invalid choice. Enter 1-3 or B.\n")
+        except Exception as e:
+            print(f"  [ERROR] Cinematic Engine failure: {e}")
+
+
+def _run_guitar_specialist_menu(out_dir):
+    while True:
+        print("""
+GUITAR & SPECIALIST STYLES
+
+  1 -> Spanish Guitar Composer
+  B -> Back
+""")
+        _div()
+        choice = input("  --> ").strip().lower()
+        _div('=')
+
+        if choice == 'b':
+            return
+        elif choice == '1':
+            try:
+                sg_engine.main(out_dir)
+            except Exception as e:
+                print(f"  [ERROR] Spanish Guitar Engine failure: {e}")
+        else:
+            print("  [!] Invalid choice. Enter 1 or B.\n")
+
+
+def _run_help_menu():
+    while True:
+        print("""
+ROUTING / HELP
+
+  1 -> DAW Channel Routing Guide
+  2 -> Engine Track Layouts
+  3 -> Filename Naming Guide
+  4 -> Recommended Instrument Patches
+  B -> Back
+""")
+        _div()
+        choice = input("  --> ").strip().lower()
+        _div('=')
+
+        if choice == 'b':
+            return
+        elif choice in ('1', '2', '4'):
+            vvc_engine.show_instrument_routing()
+            _pause()
+        elif choice == '3':
+            print("""
+FILENAME NAMING GUIDE
+
+  Cinematic:
+    Project_Title__Cinematic_Mood__Key_Tonality__BPM__Progression.mid
+
+  Major / Minor scale engines:
+    Project_Title__Major_Engine_Mood__Style__Key_Major__BPM__Progression.mid
+    Project_Title__Minor_Engine_Mood__Style__Key_Minor__BPM__Progression.mid
+
+  VVC:
+    Project_Title__VVC_Engine_Mood__Style__Key_Tonality__BPM__Progression.mid
+""")
+            _pause()
+        else:
+            print("  [!] Invalid choice. Enter 1-4 or B.\n")
+
+
+def _run_settings_menu(generation_mode, out_dir):
+    while True:
+        mode_label = (
+            "SIMPLE (Whole Notes)"
+            if generation_mode == 'simple'
+            else "DOUBLE-LAYER DECOUPLED (Subdivided Halves/Quarters)"
+        )
+        print(f"""
+SETTINGS
+
+  1 -> Toggle Generation Mode  [Active: {mode_label}]
+  2 -> Output Folder           [Active: {out_dir}]
+  B -> Back
+""")
+        _div()
+        choice = input("  --> ").strip().lower()
+        _div('=')
+
+        if choice == 'b':
+            return generation_mode, out_dir
+        elif choice == '1':
+            generation_mode = 'decoupled' if generation_mode == 'simple' else 'simple'
+            _propagate_generation_mode(generation_mode)
+            print(f"  [TOGGLE] Generation mode -> {generation_mode.upper()}")
+        elif choice == '2':
+            new_out = input("  Output folder: ").strip().strip('"').strip("'")
+            if new_out:
+                out_dir = new_out
+                os.makedirs(out_dir, exist_ok=True)
+                print(f"  [OUTPUT] {out_dir}")
+        else:
+            print("  [!] Invalid choice. Enter 1-2 or B.\n")
+
 
 def main():
     if hasattr(sys.stdout, 'reconfigure'):
@@ -59,150 +378,63 @@ def main():
 
     out_dir = 'midi_files'
     os.makedirs(out_dir, exist_ok=True)
-    
+
     generation_mode = 'simple'
+    _propagate_generation_mode(generation_mode)
 
     while True:
-        mode_label = "SIMPLE (LEGACY Whole Notes)" if generation_mode == 'simple' else "DOUBLE-LAYER DECOUPLED (Subdivided Halves/Quarters)"
         print(f"""
-╔════════════════════════════════════════════════════════════╗
-║                                                            ║
-║      A N I M A   M I D I   P R O D U C T I O N   S U I T E  ║
-║             —  The Complete Composition Engine  —          ║
-║                                                            ║
-║    Mood-Adaptive  |  Multi-Track  |  Unified Orchestration ║
-║                                                            ║
-╚════════════════════════════════════════════════════════════╝
++--------------------------------------------------------------+
+|                                                              |
+|     A N I M A   M I D I   P R O D U C T I O N   S U I T E    |
+|          ---  Master Orchestration Workstation  ---          |
+|                                                              |
+|   Mood-Adaptive  |  Multi-Track  |  Unified Orchestration    |
+|                                                              |
++--------------------------------------------------------------+
 
-   [ ── COMPO COMPANIONS (4-BAR LOOPS) ── ]
-     1  →  Minor Scale Engine
-           Choose from 5 minor families, blend emotions, or mix surprise minor cocktails.
-
-     2  →  Major Scale Engine
-           Choose from 4 major families, blend emotions, or mix surprise major cocktails.
-
-     3  →  VVC String Quartet Engine
-           Compose 4-bar orchestral loops in any custom key/scale/tempo and mood.
-
-   [ ── UTILITIES & ARRANGEMENTS ── ]
-     4  →  120-Bar Epic Arranger + Choir
-           Process a 4-bar MIDI file into a massive 120-bar industrial arrangement 
-           with dynamic section-aware SATB choir on channels 7-10.
-
-     5  →  Melodic Overlayer (Quartet Overlay)
-           Analyze any MIDI file's key/tempo and build a custom 7-track string/piano overlay.
-
-     6  →  DAW Routing & MIDI Channel Manual
-           Detailed information on Spitfire/EastWest DAW track configurations.
-
-     7  →  Spanish Guitar Composer
-           Bajo · Rasgueado · Alzapua · Picado — 4-track nylon guitar loops.
-           Moods: Duende Oscuro, Alma Flamenca, Noche Española, Serenata + more.
-
-     8  →  Modern Cinematic & Ethereal Fantasy Trailer
-           Epic 8-bar procedural arrangements.
-           Moods: Ethereal Gothic, Epic Action, Dark Assassin.
-  ____________________________________________________________
-     T  →  Toggle Generation Mode [Active: {generation_mode.upper()}]
-           Switches between Simple Mode and Double-Layer Decoupled
-     0  →  Exit
+  1 -> Generate New MIDI
+  2 -> Work With Existing MIDI
+  3 -> Cinematic Trailer Engine
+  4 -> Guitar & Specialist Styles
+  5 -> Routing / Help
+  6 -> Settings
+  0 -> Exit
 """)
         _div()
         choice = input("  --> ").strip().lower()
         _div('=')
 
-        # Propagate the active generation mode to all loaded modules
-        minor_engine.GENERATION_MODE = generation_mode
-        major_engine.GENERATION_MODE = generation_mode
-        vvc_engine.GENERATION_MODE   = generation_mode
-        sg_engine.GENERATION_MODE    = generation_mode
+        _propagate_generation_mode(generation_mode)
 
         if choice == '0':
             print("  Exiting ANIMA Workstation. Have a highly creative day!\n")
             break
 
-        elif choice == 't':
-            generation_mode = 'decoupled' if generation_mode == 'simple' else 'simple'
-            print(f"  [TOGGLE] Switched generation mode to: {generation_mode.upper()}")
-            time.sleep(0.8)
-
         elif choice == '1':
-            print("  Opening Minor Scale Engine...")
-            time.sleep(0.3)
-            try:
-                minor_engine.main()
-            except Exception as e:
-                print(f"  [ERROR] Minor Engine failure: {e}")
+            _run_generate_new_midi(out_dir)
 
         elif choice == '2':
-            print("  Opening Major Scale Engine...")
-            time.sleep(0.3)
-            try:
-                major_engine.main()
-            except Exception as e:
-                print(f"  [ERROR] Major Engine failure: {e}")
+            _run_existing_midi_menu(out_dir)
 
         elif choice == '3':
-            print("  Opening VVC String Quartet Engine...")
-            time.sleep(0.3)
-            try:
-                vvc_engine.main()
-            except Exception as e:
-                print(f"  [ERROR] VVC Engine failure: {e}")
+            _run_cinematic_menu(out_dir)
 
         elif choice == '4':
-            print("  CREATE 120-BAR EPIC ARRANGEMENT + CHOIR")
-            _div()
-            print("  Source should be a user-edited 4-bar MIDI with your instrument tracks/channels.")
-            filepath = input("  Enter path to 4-bar MIDI file: ").strip().strip('"').strip("'")
-            if not os.path.isfile(filepath):
-                print(f"  [ERROR] File not found: {filepath}")
-            else:
-                try:
-                    vvc_engine.generate_120bar_arrangement_from_midi(filepath, out_dir)
-                except Exception as e:
-                    print(f"  [ERROR] Arranger failed: {e}")
+            _run_guitar_specialist_menu(out_dir)
 
         elif choice == '5':
-            print("  ANALYZE MIDI FILE & GENERATE STRING QUARTET OVERLAY")
-            _div()
-            filepath = input("  Enter path to MIDI file: ").strip().strip('"').strip("'")
-            if not os.path.isfile(filepath):
-                print(f"  [ERROR] File not found: {filepath}")
-            else:
-                try:
-                    vvc_engine.generate_quartet_over_midi(filepath, out_dir)
-                except Exception as e:
-                    print(f"  [ERROR] Overlayer failed: {e}")
+            _run_help_menu()
 
         elif choice == '6':
-            try:
-                vvc_engine.show_instrument_routing()
-            except Exception as e:
-                print(f"  [ERROR] Failed to display guide: {e}")
-            input("  Press [Enter] to return to Main Menu...")
-
-        elif choice == '7':
-            print("  Opening Spanish Guitar Composer...")
-            time.sleep(0.3)
-            try:
-                sg_engine.main(out_dir)
-            except Exception as e:
-                print(f"  [ERROR] Spanish Guitar Engine failure: {e}")
-
-        elif choice == '8':
-            print("  Opening Cinematic Trailer Composer...")
-            time.sleep(0.3)
-            try:
-                cinematic_engine.main(out_dir)
-            except Exception as e:
-                print(f"  [ERROR] Cinematic Engine failure: {e}")
+            generation_mode, out_dir = _run_settings_menu(generation_mode, out_dir)
 
         else:
-            print("  [!] Invalid choice. Enter 1-8, T, or 0.\n")
+            print("  [!] Invalid choice. Enter 1-6 or 0.\n")
 
         _div()
         time.sleep(0.1)
+
 
 if __name__ == '__main__':
     main()

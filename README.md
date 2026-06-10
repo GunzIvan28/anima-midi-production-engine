@@ -366,9 +366,9 @@ Crimson_Valhalla__Cinematic_Dark_Assassin_Stealth__G#_Minor__100BPM__VI-III-iv-i
 
 ### Other Engines
 ```
-VVC_String_Quartet_4Bar_Sorrowful__Dark_Lament__A_Minor__90BPM.mid
-Mood__Uplifting_Joyful_Bright__Pop-Punk_Anthem__C_Major.mid
-Blend__Nostalgic+Uplifting__Wistful_Reflection__G_Major.mid
+Silver_Oracle__VVC_String_Quartet_4Bar_Sorrowful__Dark_Lament__A_Minor__90BPM__i-VI-III-VII.mid
+Golden_Harbor__Major_Engine_Uplifting_Joyful_Bright__Pop-Punk_Anthem__C_Major__126BPM__I-V-vi-IV.mid
+Obsidian_Lament__Minor_Engine_Blend_Romantic+Tragic__Doomed_Lovers__A_Minor__138BPM__i-VI-bII-V7.mid
 ```
 
 If a filename already exists, a `_v2`, `_v3`, etc. suffix is appended automatically.

@@ -79,6 +79,17 @@ ROOT_NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']
 ROOTS = {'C': 36, 'C#': 37, 'D': 38, 'Eb': 39, 'E': 40, 'F': 41,
          'F#': 42, 'G': 43, 'Ab': 44, 'A': 45, 'Bb': 46, 'B': 47}
 
+VVC_TRACK_NAMES = [
+    "String Ensemble Pad",
+    "Violin I - Lead Melody",
+    "Violin II - Counter Melody",
+    "Viola - Harmonic Fill",
+    "Cello - Bass Line",
+    "Double Bass - Low Foundation",
+    "Spiccato Ostinato - Short Strings",
+    "Piano Melody - Colour",
+]
+
 # ── Roman Numeral Chord Definitions ─────────────────────────────────────────
 # Minor key roman numerals (augmented with borrowed chords for 8-bar expansion)
 RN_MINOR = {
@@ -1349,149 +1360,199 @@ def _get_pitch_for_step(chord, step_idx, total_steps, high_base=67):
 
 def generate_ostinato(chords, bpm, tension):
     """
-    Advanced cinematic ostinato generator following the user's specific guidelines:
-    1. Adapts Rhythmic Density to BPM (Slow, Medium, Fast, Very Fast).
-    2. Constructs Ostinatos from Reusable Rhythmic Cells (Cell A, Cell B, Cell C, Cell D).
-    3. Prioritizes Chord Tones (Root, Fifth, Octave, Third, Seventh) in a tight, narrow register (A3-E5).
-    4. Eliminates mechanical repetition with 4-bar phrase structure and variations.
-    5. Applies dynamic velocity/accent patterns.
+    Professional short-string ostinato.
+
+    Uses the BPM-specific ostinato pools above, but varies pattern choice and
+    density per render. Pitches stay in compact playable lanes, favor chord
+    tones, avoid wide octave jumps, and include bow-aware accents/humanization.
     """
     tpb = 480
-    num_bars = min(4, len(chords))
     ost_events = []
+    if not chords:
+        return ost_events, "spiccato_empty"
 
-    # 1. Define 1-beat rhythmic cells: (offset_in_beat, duration_in_beat, pitch_role)
-    # Pitch roles: 'root', 'third', 'fifth', 'octave', 'seventh', 'passing'
-    if bpm < 90:
-        # Slow tempos (60-90 BPM): Primarily 1/16-notes, mixed groupings, triplets to maintain momentum
-        cell_A = [(0.0, 0.25, 'root'), (0.25, 0.25, 'third'), (0.5, 0.25, 'fifth'), (0.75, 0.25, 'third')]
-        cell_B = [(0.0, 0.25, 'root'), (0.25, 0.5, 'fifth'), (0.75, 0.25, 'octave')]
-        cell_C = [(0.0, 0.33, 'root'), (0.33, 0.33, 'fifth'), (0.66, 0.34, 'octave')]
-        cell_D = [(0.0, 0.25, 'root'), (0.25, 0.25, 'fifth'), (0.5, 0.5, 'root')]
-    elif bpm < 120:
-        # Medium tempos (90-120 BPM): 1/16-note ostinatos as default, energetic & driving
-        cell_A = [(0.0, 0.25, 'root'), (0.25, 0.25, 'fifth'), (0.5, 0.25, 'octave'), (0.75, 0.25, 'fifth')]
-        cell_B = [(0.0, 0.5, 'root'), (0.5, 0.25, 'fifth'), (0.75, 0.25, 'octave')]
-        cell_C = [(0.0, 0.25, 'root'), (0.25, 0.25, 'third'), (0.5, 0.5, 'fifth')]
-        cell_D = [(0.0, 1.0, 'root')]
-    elif bpm < 160:
-        # Fast tempos (120-160 BPM): Reduce density, 1/8-note movement with selective 1/16-note embellishments
-        cell_A = [(0.0, 0.5, 'root'), (0.5, 0.5, 'fifth')]
-        cell_B = [(0.0, 0.5, 'root'), (0.5, 0.25, 'fifth'), (0.75, 0.25, 'octave')]
-        cell_C = [(0.0, 0.75, 'root'), (0.75, 0.25, 'fifth')]
-        cell_D = [(0.0, 1.0, 'root')]
-    else:
-        # Very Fast tempos (160+ BPM): Primarily 1/8-note patterns, dotted rhythms, priority on clarity
-        cell_A = [(0.0, 0.5, 'root'), (0.5, 0.5, 'fifth')]
-        cell_B = [(0.0, 0.75, 'root'), (0.75, 0.25, 'octave')]
-        cell_C = [(0.0, 1.0, 'root')]
-        cell_D = [(0.0, 1.0, 'root')]
-
-    # 4-bar phrase structure (reused cells in developmental pattern)
-    # Bar 1 (Intro): Cell A, Cell A, Cell A, Cell A
-    # Bar 2 (Repetition): Cell A, Cell A, Cell A, Cell B
-    # Bar 3 (Development): Cell A, Cell A, Cell B, Cell C
-    # Bar 4 (Resolution): Cell B, Cell B, Cell C, Cell D
-    phrase_structure = [
-        [cell_A, cell_A, cell_A, cell_A],  # Bar 1
-        [cell_A, cell_A, cell_A, cell_B],  # Bar 2
-        [cell_A, cell_A, cell_B, cell_C],  # Bar 3
-        [cell_B, cell_B, cell_C, cell_D]   # Bar 4
+    pattern_pool = _select_ostinato_pool(bpm, tension)
+    pattern_names = list(pattern_pool.keys())
+    home_pattern = random.choice(pattern_names)
+    answer_pattern = random.choice([name for name in pattern_names if name != home_pattern] or pattern_names)
+    release_pattern = random.choice(pattern_names)
+    phrase_arcs = random.choice([
+        [0.68, 0.86, 1.08, 0.78],
+        [0.74, 0.92, 0.96, 1.12],
+        [0.62, 0.82, 1.14, 0.86],
+    ])
+    pattern_plan = [
+        home_pattern,
+        home_pattern if random.random() < 0.58 else answer_pattern,
+        answer_pattern,
+        release_pattern,
     ]
 
-    # Target register for ostinato: A3 (57) to E5 (76) to avoid wide octave jumps
-    register_min = 57
-    register_max = 76
-
+    low_reg = {'min': 50, 'max': 60, 'center': 55}
+    high_reg = {'min': 60, 'max': 72, 'center': 66}
     prev_pitch = None
+    prev_high = None
+    prev_low = None
 
-    for bar_idx in range(num_bars):
+    def nearest(pc, register, preferred=None):
+        candidates = [p for p in range(register['min'], register['max'] + 1) if p % 12 == pc % 12]
+        if not candidates:
+            return register['center']
+        target = preferred if preferred is not None else register['center']
+        return min(candidates, key=lambda p: (abs(p - target), abs(p - register['center'])))
+
+    for bar_idx, chord in enumerate(chords):
         bar_start = bar_idx * 4 * tpb
-        chord = chords[bar_idx]
-
-        # Extract pitch classes from current chord
-        pcs = sorted(list(set(n % 12 for n in chord)))
+        chord_notes = list(chord)
+        pcs = sorted(list(set(n % 12 for n in chord_notes)))
         if not pcs:
-            pcs = [0, 4, 7]  # fallback Major chord
-        
-        root_pc = pcs[0]
-        third_pc = pcs[1 % len(pcs)]
+            pcs = [0, 4, 7]
+            chord_notes = [60, 64, 67]
+
+        bass_pc = chord_notes[0] % 12
         fifth_pc = pcs[2 % len(pcs)] if len(pcs) > 2 else pcs[1 % len(pcs)]
-        seventh_pc = pcs[3 % len(pcs)] if len(pcs) > 3 else (pcs[0] + 10) % 12
+        upper_cycle = [pc for pc in pcs if pc != bass_pc] or pcs
+        if random.random() < 0.35:
+            upper_cycle = list(reversed(upper_cycle))
 
-        # Select the active bar's cell pattern from our 4-bar phrase structure
-        bar_pattern = phrase_structure[bar_idx % 4]
+        pattern_name = pattern_plan[bar_idx % 4]
+        pattern = list(pattern_pool[pattern_name])
+        if phrase_arcs[bar_idx % 4] < 0.75:
+            pattern = [step for step in pattern if step[0] in (0.0, 1.0, 2.0, 3.0) or random.random() > 0.35]
+        elif phrase_arcs[bar_idx % 4] > 1.02 and random.random() < 0.45:
+            insert_at = random.choice([0.75, 1.75, 2.75, 3.75])
+            pattern.append((insert_at, 0.25, random.choice(['high', 'low'])))
+            pattern.sort(key=lambda step: step[0])
 
-        for beat_idx in range(4):
-            cell = bar_pattern[beat_idx]
-            
-            for step_idx, (offset, dur, role) in enumerate(cell):
-                # Calculate start and duration ticks
-                tick = bar_start + beat_idx * tpb + round(offset * tpb)
-                dur_ticks = round(dur * tpb)
+        bar_energy = phrase_arcs[bar_idx % 4]
+        high_step = 0
+        low_step = 0
 
-                # Determine target pitch class based on role hierarchy
-                if role == 'root':
-                    pc = root_pc
-                elif role == 'third':
-                    pc = third_pc
-                elif role == 'fifth':
-                    pc = fifth_pc
-                elif role == 'octave':
-                    pc = root_pc
-                elif role == 'seventh':
-                    pc = seventh_pc
-                else: # passing/neighboring tone fallback
-                    pc = (root_pc + 2) % 12
+        for step_idx, (offset, dur, register_name) in enumerate(pattern):
+            if bpm >= 140 and dur <= 0.125 and random.random() < 0.35:
+                continue
+            if bar_energy < 0.72 and offset % 1.0 not in (0.0, 0.5) and random.random() < 0.50:
+                continue
 
-                # Fit pitch in the A3-E5 register comfortably
-                pitch = 60 + ((pc - 60) % 12)
-                if role == 'octave':
-                    pitch += 12
-                
-                # Keep within the defined register boundaries
-                while pitch < register_min:
-                    pitch += 12
-                while pitch > register_max:
-                    pitch -= 12
+            tick = bar_start + round(offset * tpb)
+            jitter = 0 if offset == 0.0 else random.randint(-5, 6)
+            tick = max(bar_start, tick + jitter)
+            dur_ticks = max(24, round(dur * tpb))
 
-                # Step-based voice leading: minimize large leaps if possible
-                if prev_pitch is not None and abs(pitch - prev_pitch) > 12:
-                    if pitch > prev_pitch and pitch - 12 >= register_min:
-                        pitch -= 12
-                    elif pitch < prev_pitch and pitch + 12 <= register_max:
-                        pitch += 12
+            if register_name == 'low':
+                pc = bass_pc if low_step % 2 == 0 else fifth_pc
+                preferred = prev_low if prev_low is not None else low_reg['center']
+                pitch = nearest(pc, low_reg, preferred)
+                prev_low = pitch
+                low_step += 1
+                articulation = 'staccato'
+                gate = 0.58
+            else:
+                pc = upper_cycle[high_step % len(upper_cycle)]
+                if high_step % 4 == 3 and random.random() < 0.40:
+                    pc = bass_pc
+                preferred = prev_high if prev_high is not None else high_reg['center']
+                pitch = nearest(pc, high_reg, preferred)
+                prev_high = pitch
+                high_step += 1
+                articulation = 'spiccato'
+                gate = 0.40 if dur <= 0.25 else 0.52
 
-                prev_pitch = pitch
+            if prev_pitch is not None and abs(pitch - prev_pitch) > 10:
+                combined_reg = {'min': 55, 'max': 69, 'center': 62}
+                pitch = nearest(pitch % 12, combined_reg, prev_pitch)
+            prev_pitch = pitch
 
-                # Accent structure / velocity mapping
-                # Base velocity scales with tension
-                base_vel = int(64 + tension * 20)
-                
-                if beat_idx == 0 and step_idx == 0:
-                    # Strong downbeat accent
-                    vel = base_vel + 18
-                elif beat_idx == 2 and step_idx == 0:
-                    # Mid-bar secondary accent
-                    vel = base_vel + 12
-                elif step_idx == 0:
-                    # Beat-level accent
-                    vel = base_vel + 6
-                else:
-                    # Soft offbeats / subdivisions
-                    vel = base_vel - 10
+            beat_pos = int(offset)
+            bow_is_down = step_idx % 2 == 0
+            base_vel = int(60 + tension * 24 + bar_energy * 14)
+            if offset == 0.0:
+                vel = base_vel + 16
+            elif beat_pos == 2 and abs(offset - 2.0) < 0.01:
+                vel = base_vel + 10
+            elif abs(offset - round(offset)) < 0.01:
+                vel = base_vel + 5
+            else:
+                vel = base_vel - (7 if articulation == 'spiccato' else 3)
+            if not bow_is_down:
+                vel -= 4
+            vel += random.randint(-5, 5)
+            vel = max(42, min(118, vel))
 
-                # Ensure velocity stays within standard MIDI limits
-                vel = max(30, min(127, vel))
+            off_tick = tick + max(18, int(dur_ticks * gate) - random.randint(0, 8))
+            ost_events.append((tick, 'on', pitch, vel, 6))
+            ost_events.append((off_tick, 'off', pitch, 0, 6))
 
-                ost_events.append((tick, 'on', pitch, vel, 6))
-                ost_events.append((tick + max(1, dur_ticks), 'off', pitch, 0, 6))
-
-    # To maintain backward compatibility with any checks on returning a tuple
-    return ost_events, "cell_based_4bar"
+    return ost_events, "spiccato_bpm_phrase_varied"
 
 
 # ── MIDI GENERATION ─────────────────────────────────────────────────────────
+
+def _apply_vvc_track_names(mid):
+    """Attach DAW-friendly track names to generated VVC MIDI tracks."""
+    for idx, name in enumerate(VVC_TRACK_NAMES):
+        if idx < len(mid.tracks):
+            mid.tracks[idx].name = name
+    return mid
+
+
+VVC_PROJECT_ADJECTIVES = [
+    "Apex", "Infinite", "Midnight", "Titan", "Solar", "Gothic", "Ethereal", "Grim",
+    "Silent", "Shadow", "Crimson", "Nebula", "Spectral", "Cosmic", "Lost", "Fallen",
+    "Eternal", "Frozen", "Abyssal", "Radiant", "Iron", "Storm", "Phoenix", "Astral",
+    "Mystic", "Ancient", "Vortex", "Golden", "Obsidian", "Celestial", "Wounded",
+    "Ivory", "Silver", "Marble", "Luminous", "Starlit", "Velvet", "Arcadian",
+]
+
+VVC_PROJECT_NOUNS = [
+    "Ascent", "Requiem", "Odyssey", "Eclipse", "Horizon", "Empire", "Sanctuary",
+    "Vanguard", "Echo", "Whisper", "Rift", "Conquest", "Genesis", "Destiny", "Void",
+    "Valhalla", "Covenant", "Chronicle", "Legacy", "Bastion", "Rebirth", "Summit",
+    "Oracle", "Wasteland", "Mirage", "Lament", "Citadel", "Overture", "Pilgrimage",
+    "Elegy", "Procession", "Crown", "Harbor", "Cathedral", "Reverie", "Signal",
+]
+
+
+def _vvc_project_title():
+    return f"{random.choice(VVC_PROJECT_ADJECTIVES)}_{random.choice(VVC_PROJECT_NOUNS)}"
+
+
+def _vvc_slug(text):
+    keep = []
+    for char in str(text):
+        keep.append(char if char.isalnum() or char in "#+-" else "_")
+    return "_".join(part for part in "".join(keep).split("_") if part)
+
+
+def _vvc_progression_from_chord_groups(chord_groups, root_pc=None, max_items=8):
+    if not chord_groups:
+        return "Detected_Progression"
+    labels = []
+    for pcs in chord_groups[:max_items]:
+        if root_pc is None:
+            labels.append("+".join(ROOT_NAMES[pc % 12] for pc in sorted(set(pcs))))
+        else:
+            rel = sorted(set((pc - root_pc) % 12 for pc in pcs))
+            labels.append("+".join(str(pc) for pc in rel))
+    return "-".join(labels)
+
+
+def _vvc_filename(engine_mood, style, root_name, key_label, bpm, progression_label):
+    project_title = _vvc_project_title()
+    return (
+        f"{project_title}__VVC_{_vvc_slug(engine_mood)}__{_vvc_slug(style)}__"
+        f"{root_name}_{_vvc_slug(key_label)}__{bpm}BPM__{_vvc_slug(progression_label)}"
+    )
+
+
+def _vvc_unique_path(out_dir, fname):
+    fpath = os.path.join(out_dir, fname + ".mid")
+    idx = 1
+    while os.path.exists(fpath):
+        fpath = os.path.join(out_dir, f"{fname}_v{idx}.mid")
+        idx += 1
+    return fpath
+
 
 def generate_string_quartet(bpm, root_name, root_val, progression, roman_numerals,
                              tension, mood_name, label_name, num_bars=4):
@@ -1499,13 +1560,13 @@ def generate_string_quartet(bpm, root_name, root_val, progression, roman_numeral
     Main MIDI generator for the string quartet + double bass + ostinato + piano.
     Produces 8 tracks using the chord-tone-centric expressive generators:
       Track 0 (Ch 0): String Ensemble Pad (GM 48)
-      Track 1 (Ch 1): Violin I Lead (GM 40)
-      Track 2 (Ch 2): Violin II Counter-melody (GM 40)
-      Track 3 (Ch 3): Viola (GM 41)
-      Track 4 (Ch 4): Cello (GM 42)
-      Track 5 (Ch 5): Double Bass (GM 43)
-      Track 6 (Ch 6): Unified Ostinato (GM 49)
-      Track 7 (Ch 7): Piano Melody (GM 0)
+      Track 1 (Ch 1): Violin I - Lead Melody (GM 40)
+      Track 2 (Ch 2): Violin II - Counter Melody (GM 40)
+      Track 3 (Ch 3): Viola - Harmonic Fill (GM 41)
+      Track 4 (Ch 4): Cello - Bass Line (GM 42)
+      Track 5 (Ch 5): Double Bass - Low Foundation (GM 43)
+      Track 6 (Ch 6): Spiccato Ostinato - Short Strings (GM 49)
+      Track 7 (Ch 7): Piano Melody - Colour (GM 0)
     """
     tpb = 480
     full_prog = [progression[i % len(progression)] for i in range(num_bars)]
@@ -1718,7 +1779,7 @@ def generate_string_quartet(bpm, root_name, root_val, progression, roman_numeral
                                              start_val=50, end_val=vel_bass, curve_type="sine", ch=5)
         current_tick += dur_ticks
 
-    # ── Track 6: Unified Ostinato (GM 49, Ch 6) ──
+    # ── Track 6: Spiccato Ostinato - Short Strings (GM 49, Ch 6) ──
     tracks_events[6].append((0, 'program', 49, 0, 6))
     for ev in ost_events:
         tick, etype, note, velocity, old_ch = ev
@@ -1743,6 +1804,7 @@ def generate_string_quartet(bpm, root_name, root_val, progression, roman_numeral
 
     # Build MIDI file
     mid = specialist_styles.build_midi_from_events(tracks_events, tpb)
+    _apply_vvc_track_names(mid)
     return mid
 
 
@@ -2802,7 +2864,7 @@ def generate_quartet_over_midi(filepath, out_dir):
                                              start_val=50, end_val=vel_bass, curve_type="sine", ch=5)
         current_tick += dur_ticks
 
-    # ── Track 6: Unified Ostinato (GM 49 String Ensemble 2, Ch 6) ──
+    # ── Track 6: Spiccato Ostinato - Short Strings (GM 49 String Ensemble 2, Ch 6) ──
     tracks_events[6].append((0, 'program', 49, 0, 6))
     for ev in ost_events:
         tick, etype, note, velocity, old_ch = ev
@@ -2828,6 +2890,7 @@ def generate_quartet_over_midi(filepath, out_dir):
 
     # Build VVC Midi tracks from these events
     vvc_mid = specialist_styles.build_midi_from_events(tracks_events, tpb)
+    _apply_vvc_track_names(vvc_mid)
 
     # Load original MIDI file
     original_mid = mido.MidiFile(filepath)
@@ -2844,19 +2907,17 @@ def generate_quartet_over_midi(filepath, out_dir):
     for track in vvc_mid.tracks:
         final_mid.tracks.append(track)
 
-    # Save
     base = os.path.splitext(os.path.basename(filepath))[0]
-    fname = f"{base}__VVC_Quartet__{root_name}_{scale_name.replace(' ','_')}__{bpm}BPM"
-    fpath = os.path.join(out_dir, fname + ".mid")
-    idx = 1
-    while os.path.exists(fpath):
-        fpath = os.path.join(out_dir, f"{fname}_v{idx}.mid")
-        idx += 1
+    progression_label = _vvc_progression_from_chord_groups(chord_groups, root_pc)
+    key_label = f"{scale_name}_{'Minor' if is_minor else 'Major'}"
+    fname = _vvc_filename("Quartet Overlay", f"Expressive Overlay from {base}",
+                          root_name, key_label, bpm, progression_label)
+    fpath = _vvc_unique_path(out_dir, fname)
 
     final_mid.save(fpath)
     print(f"\n  [SAVED]  {os.path.basename(fpath)}")
     print(f"  [PATH ]  {fpath}")
-    print("       VVC Tracks (Ch 0-7): Pad | Vln I | Vln II | Viola | Cello | Double Bass | Ostinato | Piano\n")
+    print("       VVC Tracks (Ch 0-7): String Ensemble Pad | Violin I | Violin II | Viola | Cello | Double Bass | Spiccato Ostinato | Piano Melody\n")
 
 
 def _generate_cello_core(root_note, bars_data, tension=0.5):
@@ -3063,12 +3124,12 @@ def generate_choir_over_midi(filepath, out_dir):
     mid = generate_dynamic_choir_from_chords(chord_groups, root_pc, scale, bpm, tension)
 
     base = os.path.splitext(os.path.basename(filepath))[0]
-    fname = f"{base}__VVC_Cinematic_Choir__{root_name}_{scale_name.replace(' ','_')}__{bpm}BPM"
-    fpath = os.path.join(out_dir, fname + ".mid")
-    idx = 1
-    while os.path.exists(fpath):
-        fpath = os.path.join(out_dir, f"{fname}_v{idx}.mid")
-        idx += 1
+    intensity_label = {'1': 'Sacred Sparse', '2': 'Cinematic Build', '3': 'Massive Revelatory'}.get(tc, 'Cinematic Build')
+    progression_label = _vvc_progression_from_chord_groups(chord_groups, root_pc)
+    key_label = f"{scale_name}_{'Minor' if is_minor else 'Major'}"
+    fname = _vvc_filename("Cinematic Choir", f"{intensity_label} from {base}",
+                          root_name, key_label, bpm, progression_label)
+    fpath = _vvc_unique_path(out_dir, fname)
 
     mid.save(fpath)
     print(f"\n  [SAVED]  {os.path.basename(fpath)}")
@@ -3368,13 +3429,11 @@ def generate_120bar_arrangement_from_midi(filepath, out_dir):
     final_instrument_mid = specialist_styles.build_midi_from_events(arranged_tracks, tpb)
     
     base = os.path.splitext(os.path.basename(filepath))[0]
-    fname = f"{base}__VVC_120Bar_Epic_Arrangement__{root_name}_{scale_name.replace(' ','_')}__{bpm}BPM"
-    fpath = os.path.join(out_dir, fname + ".mid")
-    
-    idx = 1
-    while os.path.exists(fpath):
-        fpath = os.path.join(out_dir, f"{fname}_v{idx}.mid")
-        idx += 1
+    progression_label = _vvc_progression_from_chord_groups(chord_groups_4, root_pc)
+    key_label = f"{scale_name}_{'Minor' if is_minor else 'Major'}"
+    fname = _vvc_filename("120Bar Epic Arrangement", f"Source {base}",
+                          root_name, key_label, bpm, progression_label)
+    fpath = _vvc_unique_path(out_dir, fname)
         
     final_instrument_mid.save(fpath)
     
@@ -3391,103 +3450,161 @@ def generate_120bar_arrangement_from_midi(filepath, out_dir):
 
 
 def show_instrument_routing():
-    """Display DAW routing guide for generated MIDI files."""
+    """Display the full DAW routing guide for all ANIMA engines."""
     print("""
-  =====================================================================
-    DAW INSTRUMENT ROUTING — VVC String Quartet + Piano (Option 1/3)
-  =====================================================================
-    The default generated MIDI file contains 8 tracks:
+  ====================================================================
+   A N I M A   D A W   R O U T I N G   &   M I D I   C H A N N E L
+   M A N U A L
+  ====================================================================
 
-    * Track 0 (Ch 0)  ->  String Ensemble Pad (Harmonic Bed)
-                          - GM Program 48 (String Ensemble 1)
-                          - Voice-led chord progression (root, 3rd, 5th)
-                          - Sustains for entire duration of each bar
-                          - CC#11 Expression & CC#1 ModWheel swells
+  ====================================================================
+   ENGINE 1 & 2 -- Minor / Major Scale Engine
+  ====================================================================
+   Generates a 4-bar Markov-chain MIDI.  Track structure:
 
-    * Track 1 (Ch 1)  ->  Violin I (Lead Melody)
-                          - GM Program 40 (Violin)
-                          - Register lane: C5 (72) to B5 (83)
-                          - Markov chain lyrical melody with octave leaps
-                          - CC#11 Expression & CC#1 ModWheel phrasing
+    Ch 0  ->  String Ensemble Pad    GM 48  (String Ensemble 1)
+              Voice-led chord pad; sustains the full bar.
+              CC#11 Expression & CC#1 ModWheel swells.
 
-    * Track 2 (Ch 2)  ->  Violin II (Counter Melody)
-                          - GM Program 40 (Violin)
-                          - Register lane: C4 (60) to B4 (71)
-                          - Contrary motion against Violin I
-                          - Sustained legato, lower register blend
-                          - CC#11 Expression swells
+    Ch 1  ->  Violin I  (Lead Melody)  GM 40
+              Lyrical melody -- register C5-B5 (MIDI 72-83).
+              Markov walk with occasional octave leaps.
 
-    * Track 3 (Ch 3)  ->  Viola (Harmonic Support)
-                          - GM Program 41 (Viola)
-                          - Register lane: C3 (48) to B3 (59)
-                          - Sustained warm counter-line
-                          - CC#11 Expression swells
+    Ch 2  ->  Violin II  (Counter)     GM 40
+              Contrary motion -- register C4-B4 (MIDI 60-71).
 
-    * Track 4 (Ch 4)  ->  Cello (Bass Line)
-                          - GM Program 42 (Cello)
-                          - Register lane: C2 (36) to B2 (47)
-                          - Root/fifth motion with scalar passing tones
-                          - CC#11 Expression swells
+    Ch 3  ->  Viola  (Harmonic fill)   GM 41
+              Warm sustained counter-line -- C3-B3 (MIDI 48-59).
 
-    * Track 5 (Ch 5)  ->  Unified Ostinato (The Motor)
-                          - GM Program 49 (Slow Strings / String Ens 2)
-                          - High arpeggios plus low root/fifth punches
-                          - CC#11 Expression swells matching tension
+    Ch 4  ->  Cello  (Bass line)       GM 42
+              Root/fifth motion -- C2-B2 (MIDI 36-47).
 
-    * Track 6 (Ch 6)  ->  Piano Melody (High Color)
-                          - GM Program 0 (Acoustic Grand Piano)
-                          - Register lane: C6 (84) to C7 (96)
-                          - Sparse-to-active melodic decoration from chord tones
+    Ch 5  ->  Spiccato Ostinato        GM 49  (String Ensemble 2)
+              Compact short-string chord-tone pulses with bow-aware accents.
 
-  =====================================================================
-    DAW INSTRUMENT ROUTING — MIDI Quartet Overlay (Option 5)
-  =====================================================================
-    The VVC Quartet Overlay contains 8 tracks appended to the original tracks:
+    Ch 6  ->  Piano Melody  (Colour)   GM 0
+              Sparse decoration -- C6-C7 (MIDI 84-96).
 
-    * Track 0 (Ch 0)  ->  String Ensemble Pad (Harmonic Bed)
-                          - GM Program 48 (String Ensemble 1)
-    * Track 1 (Ch 1)  ->  Violin I (Lead Melody)
-                          - GM Program 40 (Violin)
-    * Track 2 (Ch 2)  ->  Violin II (Counter Melody)
-                          - GM Program 40 (Violin)
-    * Track 3 (Ch 3)  ->  Viola (Harmonic Support)
-                          - GM Program 41 (Viola)
-    * Track 4 (Ch 4)  ->  Cello (Bass Line)
-                          - GM Program 42 (Cello)
-    * Track 5 (Ch 5)  ->  Double Bass (Bass Foundation)
-                          - GM Program 43 (Contrabass)
-    * Track 6 (Ch 6)  ->  Unified Ostinato (The Motor)
-                          - GM Program 49 (String Ensemble 2)
-    * Track 7 (Ch 7)  ->  Piano Melody (High Color)
-                          - GM Program 0 (Acoustic Grand Piano)
+  ====================================================================
+   ENGINE 3 -- VVC String Orchestra  (standalone)
+  ====================================================================
+   Generates an 8-channel VVC layout:
 
-    DAW INSTRUMENT ROUTING — 120-Bar Epic Cinematic Arrangement
-  =====================================================================
-    Option 4 preserves the user's supplied instrument tracks/channels,
-    arranges them into a 120-bar form, then appends SATB choir tracks:
+    Ch 0  ->  String Ensemble Pad        GM 48
+    Ch 1  ->  Violin I - Lead Melody     GM 40
+    Ch 2  ->  Violin II - Counter Melody GM 40
+    Ch 3  ->  Viola - Harmonic Fill      GM 41
+    Ch 4  ->  Cello - Bass Line          GM 42
+    Ch 5  ->  Double Bass - Low Foundation GM 43  (Contrabass)
+    Ch 6  ->  Spiccato Ostinato - Short Strings GM 49
+    Ch 7  ->  Piano Melody - Colour      GM 0
 
-    * Source Tracks      ->  Preserved from the user's edited 4-bar MIDI
-                             - Same instrument channels/programs where possible
-                             - Notes distributed by section and role
+   All tracks include humanised CC#11/CC#1 expression curves.
 
-    * Choir Append Ch 7  ->  Soprano
-    * Choir Append Ch 8  ->  Alto
-    * Choir Append Ch 9  ->  Tenor
-    * Choir Append Ch 10 ->  Bass
+  ====================================================================
+   ENGINE 4 -- Melodic Overlayer  (Quartet Overlay)
+  ====================================================================
+   Appends 8 named VVC tracks to your existing MIDI:
 
-    Arc:
-      Intro (16 bars) -> Build-up (16 bars) -> Main Theme A (32 bars)
-      -> Development (16 bars) -> Climax (24 bars) -> Final Chorus (8 bars)
-      -> Outro (8 bars)
+    Ch 0  ->  String Ensemble Pad          GM 48
+    Ch 1  ->  Violin I - Lead Melody       GM 40
+    Ch 2  ->  Violin II - Counter Melody   GM 40
+    Ch 3  ->  Viola - Harmonic Fill        GM 41
+    Ch 4  ->  Cello - Bass Line            GM 42
+    Ch 5  ->  Double Bass - Low Foundation GM 43  (Contrabass)
+    Ch 6  ->  Spiccato Ostinato - Short Strings GM 49
+    Ch 7  ->  Piano Melody - Colour        GM 0
 
-  =====================================================================
-    PRO TIP: Route each channel to its own library patch or articulation lane.
-    Enable CC#1 and CC#11 response for realistic dynamic shaping.
-  =====================================================================
-  """)
+  ====================================================================
+   ENGINE 5 -- Spanish Guitar Composer
+  ====================================================================
+   Generates a 4-track nylon-guitar arrangement:
 
+    Ch 0  ->  Bajo  (bass thumb strokes)       GM 25  (Steel Guitar)
+    Ch 1  ->  Rasgueado  (strummed chords)     GM 25
+    Ch 2  ->  Alzapua  (counter-melody thumb)  GM 24  (Nylon Guitar)
+    Ch 3  ->  Picado  (single-note lead runs)  GM 24
 
-# ── MAIN ──────────────────────────────────────────────────────────────────
+  ====================================================================
+   ENGINE 6 -- Modern Cinematic Trailer Engine
+  ====================================================================
+   Generates a 4-bar stem-ready arrangement.
+
+   FOUNDATION TRACKS  (present in every mood):
+    Ch 0  ->  Chord Pad          GM 89  (Warm Pad)       MIDI 52-76
+              Voice-led inversion pad -- nearest-pitch per bar.
+    Ch 1  ->  Sub Bass           GM 43  (Contrabass)    MIDI 36-48
+              Sustained root on every bar.
+    Ch 2  ->  High Drone         GM 48  (String Ens 1)  MIDI 84-96
+              Long sustained tension note for the full cue.
+    Ch 3  ->  Staccato / Spiccato Strings GM 48         MIDI 55-72
+              BPM-aware short-string cells with phrase arcs and humanized bow accents.
+
+   MINOR MOODS:
+    Mood 1 -- Ethereal Gothic Fantasy  (10 tracks)
+      Ch 4  ->  Choir - Bass       GM 52  (Choir Aahs)  MIDI 43-55
+      Ch 5  ->  Choir - Tenor      GM 52               MIDI 53-65
+      Ch 6  ->  Choir - Alto       GM 52               MIDI 59-71
+      Ch 7  ->  Choir - Soprano    GM 52               MIDI 65-77
+      Ch 8  ->  Harp / Nylon Arps  GM 46  (Harp)
+      Ch 9  ->  Piano Melody       GM 0   (Grand Piano) MIDI 72-84
+
+    Mood 2 -- Epic Heroic Action  (10 tracks)
+      Ch 4  ->  Heavy Brass        GM 61  (Brass Section) MIDI 41-60
+      Ch 5  ->  Choir - Bass       GM 52
+      Ch 6  ->  Choir - Tenor      GM 52
+      Ch 7  ->  Choir - Alto       GM 52
+      Ch 8  ->  Choir - Soprano    GM 52
+      Ch 9  ->  Piano Melody       GM 0   (Grand Piano) MIDI 72-84
+
+    Mood 3 -- Dark Assassin Stealth  (11 tracks)
+      Ch 4  ->  Nylon Guitars      GM 24  (Nylon Guitar)
+      Ch 5  ->  Dark Piano         GM 0   (Grand Piano)
+      Ch 6  ->  Choir - Bass       GM 52
+      Ch 7  ->  Choir - Tenor      GM 52
+      Ch 8  ->  Choir - Alto       GM 52
+      Ch 9  ->  Choir - Soprano    GM 52
+      Ch 10 ->  Piano Melody       GM 0   (Grand Piano) MIDI 72-84
+
+   MAJOR MOODS:
+    Mood 1 -- Triumphant Ascent  (10 tracks)
+      Ch 4  ->  Brass Fanfare      GM 61  MIDI 53-72
+      Ch 5  ->  Choir - Bass       GM 52
+      Ch 6  ->  Choir - Tenor      GM 52
+      Ch 7  ->  Choir - Alto       GM 52
+      Ch 8  ->  Choir - Soprano    GM 52
+      Ch 9  ->  Piano Melody       GM 0   MIDI 72-84
+
+    Mood 2 -- Celestial Wonder  (10 tracks)
+      Ch 4  ->  Celesta Arps       GM 8   (Celesta)      MIDI 72-90
+      Ch 5  ->  Choir - Bass       GM 52
+      Ch 6  ->  Choir - Tenor      GM 52
+      Ch 7  ->  Choir - Alto       GM 52
+      Ch 8  ->  Choir - Soprano    GM 52
+      Ch 9  ->  Piano Melody       GM 0   MIDI 72-84
+
+    Mood 3 -- Golden Pastoral  (11 tracks)
+      Ch 4  ->  Pastoral Harp      GM 46  (Harp)
+      Ch 5  ->  Woodwind Lead      GM 73  (Flute)        MIDI 65-79
+      Ch 6  ->  Choir - Bass       GM 52
+      Ch 7  ->  Choir - Tenor      GM 52
+      Ch 8  ->  Choir - Alto       GM 52
+      Ch 9  ->  Choir - Soprano    GM 52
+      Ch 10 ->  Piano Melody       GM 0   MIDI 72-84
+
+  ====================================================================
+   PRO TIPS
+  ====================================================================
+   * Route each MIDI channel to its own sampler instrument/patch.
+   * Enable CC#1 (ModWheel) and CC#11 (Expression) response for
+     realistic dynamic shaping on string/choir patches.
+   * For Cinematic Engine output, load each stem into a separate DAW
+     track and apply your own reverb / room to each layer.
+   * Spitfire LABS / BBC Symphony and EastWest Hollywood Strings
+     respond well to the CC curves already baked into Engines 1-4.
+  ====================================================================
+""")
+
 
 def main():
     out_dir = 'midi_files'
@@ -3589,16 +3706,9 @@ def main():
                                            prog_label, num_bars=num_bars)
 
             # Step 8: Save
-            sm = mood_name.replace(' ','_').replace('&','and').replace(',','')
-            sl = prog_label.replace(' ','_').replace('(','').replace(')','').replace('/','_')
-            struct_tag = "4Bar"
-            fname = f"VVC_String_Quartet_{struct_tag}_{sm}__{sl}__{root_name}_{scale_label}__{bpm}BPM"
-
-            fpath = os.path.join(out_dir, fname + ".mid")
-            idx = 1
-            while os.path.exists(fpath):
-                fpath = os.path.join(out_dir, f"{fname}_v{idx}.mid")
-                idx += 1
+            fname = _vvc_filename(f"String Quartet 4Bar {mood_name}", prog_label,
+                                  root_name, scale_label, bpm, display_prog)
+            fpath = _vvc_unique_path(out_dir, fname)
 
             mid.save(fpath)
             print(f"  [SAVED]  {os.path.basename(fpath)}")

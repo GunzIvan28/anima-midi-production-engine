@@ -8,6 +8,34 @@ Features:
 import mido, os, random, time, math
 
 GENERATION_MODE = 'simple'
+DEFAULT_BPM = 120
+
+PROJECT_ADJECTIVES = [
+    "Apex", "Infinite", "Midnight", "Titan", "Solar", "Gothic", "Ethereal", "Grim", "Silent",
+    "Shadow", "Crimson", "Nebula", "Spectral", "Cosmic", "Lost", "Fallen", "Eternal", "Frozen",
+    "Abyssal", "Radiant", "Iron", "Storm", "Phoenix", "Astral", "Mystic", "Ancient", "Vortex",
+    "Obsidian", "Nocturne", "Velvet", "Ashen", "Cinder", "Hollow", "Distant", "Moonlit",
+    "Cathedral", "Wounded", "Funeral", "Tarnished", "Winter", "Bloodless", "Raven", "Umbral",
+    "Haunted", "Sable", "Fever", "Shattered", "Marble", "Waning", "Dusklit", "Feral",
+    "Forsaken", "Charcoal", "Dread", "Grave", "Hushed", "Bleak", "Scarred", "Widowed",
+    "Broken", "Sepulchral", "Buried", "Withered", "Veiled", "Mournful", "Blackened", "Doomed",
+    "Cavernous", "Restless", "Frostbitten", "Eclipsed", "Trembling", "Hallowed", "Cursed", "Pale",
+    "Sorrowing", "Wraithlike", "Drifting", "Ritual", "Duskbound", "Nocturnal", "Stygian", "Faded",
+    "Ironclad", "Gloaming", "Tortured", "Severed", "Lunar", "Aching", "Funereal", "Drowned",
+]
+PROJECT_NOUNS = [
+    "Ascent", "Requiem", "Odyssey", "Eclipse", "Horizon", "Empire", "Sanctuary", "Vanguard",
+    "Echo", "Whisper", "Rift", "Conquest", "Genesis", "Destiny", "Void", "Valhalla", "Covenant",
+    "Chronicle", "Legacy", "Bastion", "Rebirth", "Summit", "Oracle", "Wasteland", "Mirage",
+    "Lament", "Catacomb", "Vigil", "Dirge", "Ashes", "Oath", "Citadel", "Elegy",
+    "Sepulcher", "Pilgrimage", "Wound", "Procession", "Signal", "Ember", "Labyrinth", "Crown",
+    "Monument", "Aftermath", "Cathedral", "Threshold", "Tomb", "Furnace", "Veil", "Dagger",
+    "Ruin", "Grief", "Trial", "Exile", "Hollow", "Cairn", "Penance", "Funeral",
+    "Scar", "Relic", "Cataclysm", "Nightfall", "Vow", "Remnant", "Descent", "Apparition",
+    "Crypt", "Wraith", "Bells", "Confession", "Betrayal", "Wake", "Oblivion", "Hymn",
+    "Burial", "Fever", "Silence", "Stormfront", "Dreadnought", "Abyss", "Rapture", "Gallows",
+    "Coven", "Frost", "Memory", "Atonement", "Shroud", "Ravine", "Sorrow", "Gloaming",
+]
 
 # ── SCALES ──────────────────────────────────────────────────────────────────
 SCALE_AEOLIAN  = [0, 2, 3, 5, 7, 8, 10]
@@ -453,15 +481,27 @@ def _generate_counter_core(root_note, bars_data, tension=0.5, lead_melody=None):
             cur = off; beats_left -= dur; beat_pos += dur
     return counter
 
-def build_midi(chords, melody, counter, base_tpb=480):
+def build_midi(chords, melody, counter, base_tpb=480, bpm=DEFAULT_BPM):
     mid = mido.MidiFile()
     mid.ticks_per_beat = base_tpb
     tpb = base_tpb
     chord_dur = tpb * 4
 
+    tr_meta = mido.MidiTrack(); mid.tracks.append(tr_meta)
     tr_ch = mido.MidiTrack(); mid.tracks.append(tr_ch)
     tr_mel = mido.MidiTrack(); mid.tracks.append(tr_mel)
     tr_cnt = mido.MidiTrack(); mid.tracks.append(tr_cnt)
+
+    tr_meta.name = "Tempo & Meta"
+    tr_ch.name = "Chord Pad"
+    tr_mel.name = "Violin I - Lead Melody"
+    tr_cnt.name = "Violin II - Counter Melody"
+
+    tr_meta.append(mido.MetaMessage('set_tempo', tempo=mido.bpm2tempo(bpm), time=0))
+    tr_meta.append(mido.MetaMessage('time_signature', numerator=4, denominator=4, time=0))
+    tr_ch.append(mido.Message('program_change', program=89, channel=0, time=0))
+    tr_mel.append(mido.Message('program_change', program=40, channel=1, time=0))
+    tr_cnt.append(mido.Message('program_change', program=40, channel=2, time=0))
 
     if chords:
         for bar_item in chords:
@@ -471,17 +511,17 @@ def build_midi(chords, melody, counter, base_tpb=480):
                 for voicing, dur in bar_item:
                     c_dur = int(dur * tpb)
                     for n in voicing:
-                        tr_ch.append(mido.Message('note_on', note=n, velocity=68, time=cum_time))
+                        tr_ch.append(mido.Message('note_on', note=n, velocity=68, channel=0, time=cum_time))
                     for i, n in enumerate(voicing):
-                        tr_ch.append(mido.Message('note_off', note=n, velocity=68,
+                        tr_ch.append(mido.Message('note_off', note=n, velocity=68, channel=0,
                                                   time=c_dur if i == 0 else 0))
                     cum_time = 0
             else:
                 # Simple whole-bar voicing: list of ints
                 for n in bar_item:
-                    tr_ch.append(mido.Message('note_on', note=n, velocity=68, time=0))
+                    tr_ch.append(mido.Message('note_on', note=n, velocity=68, channel=0, time=0))
                 for i, n in enumerate(bar_item):
-                    tr_ch.append(mido.Message('note_off', note=n, velocity=68,
+                    tr_ch.append(mido.Message('note_off', note=n, velocity=68, channel=0,
                                               time=chord_dur if i == 0 else 0))
 
     # Lead melody: accented velocity (90), rests advance time
@@ -491,8 +531,8 @@ def build_midi(chords, melody, counter, base_tpb=480):
         if nv is None:
             rest_accum += dt
         else:
-            tr_mel.append(mido.Message('note_on',  note=nv, velocity=90, time=rest_accum))
-            tr_mel.append(mido.Message('note_off', note=nv, velocity=90, time=dt))
+            tr_mel.append(mido.Message('note_on',  note=nv, velocity=90, channel=1, time=rest_accum))
+            tr_mel.append(mido.Message('note_off', note=nv, velocity=90, channel=1, time=dt))
             rest_accum = 0
 
     # Counter-melody: soft supportive velocity (62), rests advance time
@@ -502,8 +542,8 @@ def build_midi(chords, melody, counter, base_tpb=480):
         if nv is None:
             rest_accum += dt
         else:
-            tr_cnt.append(mido.Message('note_on',  note=nv, velocity=62, time=rest_accum))
-            tr_cnt.append(mido.Message('note_off', note=nv, velocity=62, time=dt))
+            tr_cnt.append(mido.Message('note_on',  note=nv, velocity=62, channel=2, time=rest_accum))
+            tr_cnt.append(mido.Message('note_off', note=nv, velocity=62, channel=2, time=dt))
             rest_accum = 0
 
     return mid
@@ -710,6 +750,18 @@ def _detect_scale(prog):
     if any(n in prog for n in ['V','V7','iv7']): return 'Harmonic Minor'
     return 'Natural Minor (Aeolian)'
 
+def _slug(text):
+    keep = []
+    for char in str(text):
+        keep.append(char if char.isalnum() or char in "#+-" else "_")
+    return "_".join(part for part in "".join(keep).split("_") if part)
+
+def _project_title():
+    return f"{random.choice(PROJECT_ADJECTIVES)}_{random.choice(PROJECT_NOUNS)}"
+
+def _tempo_for_tension(tension):
+    return random.randint(130, 146) if tension >= 0.70 else random.randint(104, 128)
+
 def _save_midi(mid, fname_base, out_dir):
     fpath = os.path.join(out_dir, fname_base + '.mid')
     idx = 1
@@ -718,6 +770,13 @@ def _save_midi(mid, fname_base, out_dir):
     mid.save(fpath)
     print(f"\n  [SAVED]  {os.path.basename(fpath)}")
     print(f"  [PATH ]  {fpath}\n")
+
+def _cinematic_fname(mood_name, style_label, root_name, tonality, bpm, prog_display):
+    project_title = _project_title()
+    mood_tag = _slug(mood_name)
+    style_tag = _slug(style_label)
+    prog_tag = _slug(prog_display)
+    return f"{project_title}__Minor_Engine_{mood_tag}__{style_tag}__{root_name}_{tonality}__{bpm}BPM__{prog_tag}"
 
 def _again_or_back():
     print("  [G] Generate again    [B] Back to main menu")
@@ -773,10 +832,9 @@ def _run_quick_cluster(cluster_key, out_dir):
         chords  = generate_chords(root_val, full_prog)
         melody  = generate_melody(root_val, full_prog, tension)
         counter = generate_counter(root_val, full_prog, tension, lead_melody=melody)
-        mid     = build_midi(chords, melody, counter)
-        sm  = names.replace(' ','_').replace('/','_').replace('&','and').replace(',','').replace('  ','_')
-        sl  = entry['label'].replace(' ','_').replace('(','').replace(')','').replace('/','_')
-        _save_midi(mid, f"Mood__{sm}__{sl}__{root_name}_Minor", out_dir)
+        bpm     = _tempo_for_tension(tension)
+        mid     = build_midi(chords, melody, counter, bpm=bpm)
+        _save_midi(mid, _cinematic_fname(names, entry['label'], root_name, "Minor", bpm, prog_display), out_dir)
         again = _again_or_back()
 
 def _run_blend(out_dir, surprise=False):
@@ -852,9 +910,9 @@ def _run_blend(out_dir, surprise=False):
         chords  = generate_chords(root_val, full_prog)
         melody  = generate_melody(root_val, full_prog, tension)
         counter = generate_counter(root_val, full_prog, tension, lead_melody=melody)
-        mid = build_midi(chords, melody, counter)
-        sl  = entry['label'].replace(' ','_').replace('(','').replace(')','').replace('/','_')
-        _save_midi(mid, f"Blend__{tag}__{sl}__{root_name}_Minor", out_dir)
+        bpm = _tempo_for_tension(tension)
+        mid = build_midi(chords, melody, counter, bpm=bpm)
+        _save_midi(mid, _cinematic_fname(f"Blend {tag}", entry['label'], root_name, "Minor", bpm, prog_display), out_dir)
         again = _again_or_back()
 
 
