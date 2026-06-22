@@ -12,6 +12,25 @@ import time
 import random
 import importlib.util
 
+EXIT_MUSICAL_MESSAGES = [
+    "May your next melody arrive before the silence fades.",
+    "Keep the rhythm moving, even when the room goes quiet.",
+    "Every ending is a dominant chord waiting to resolve.",
+    "Let the final note ring. The next song is already listening.",
+    "May your chords be rich, your melodies fearless, and your timing human.",
+    "The session ends here, but the progression keeps moving.",
+    "Leave a little silence between today and your next masterpiece.",
+    "May inspiration find you somewhere between the downbeat and the dream.",
+    "Keep composing—the world still needs sounds it has never heard.",
+    "Until the next measure: stay curious, stay melodic.",
+    "May your bass be deep, your harmonies warm, and your crescendos earned.",
+    "The orchestra rests. Your imagination does not.",
+    "Take the motif with you; it may become a symphony tomorrow.",
+    "May every unresolved chord lead you somewhere beautiful.",
+    "Fade out gently. Return with thunder.",
+    "The MIDI stops here. The music does not.",
+]
+
 # ================================================================
 # SYSTEM PATH SETUP
 # ================================================================
@@ -57,6 +76,10 @@ def _div(char='-', w=62):
 
 def _pause():
     input("  Press [Enter] to return...")
+
+
+def _random_exit_message():
+    return random.choice(EXIT_MUSICAL_MESSAGES)
 
 
 def _propagate_generation_mode(generation_mode):
@@ -183,15 +206,21 @@ GENERATE NEW MIDI
         try:
             if choice == '1':
                 print("  Opening Minor Scale Engine...")
-                minor_engine.main()
+                minor_engine.main(out_dir)
             elif choice == '2':
                 print("  Opening Major Scale Engine...")
-                major_engine.main()
+                major_engine.main(out_dir)
             elif choice == '3':
                 print("  Opening VVC String Quartet Engine...")
-                vvc_engine.main()
+                vvc_engine.main(out_dir)
             elif choice == '4':
-                random.choice([minor_engine.main, major_engine.main, vvc_engine.main])()
+                selected_engine = random.choice(['minor', 'major', 'vvc'])
+                if selected_engine == 'minor':
+                    minor_engine.main(out_dir)
+                elif selected_engine == 'major':
+                    major_engine.main(out_dir)
+                else:
+                    vvc_engine.main(out_dir)
             else:
                 print("  [!] Invalid choice. Enter 1-4 or B.\n")
         except Exception as e:
@@ -408,7 +437,8 @@ def main():
         _propagate_generation_mode(generation_mode)
 
         if choice == '0':
-            print("  Exiting ANIMA Workstation. Have a highly creative day!\n")
+            print(f"\n  ♪ {_random_exit_message()} ♪")
+            print("  Exiting ANIMA Workstation.\n")
             break
 
         elif choice == '1':

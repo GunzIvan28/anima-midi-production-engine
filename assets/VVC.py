@@ -2751,7 +2751,15 @@ def generate_quartet_over_midi(filepath, out_dir):
                                               cello_melody=cello_notes, double_bass_melody=double_bass)
 
     # 2. Generate Ostinato and Piano
-    ost_events, _ = generate_ostinato(chords_for_ostinato, bpm, tension)
+    # Use the cinematic engine's professional short-string spiccato/staccato ostinato
+    # (cell-based, BPM-aware density, phrase arcs, role-driven chord-tone assignment).
+    try:
+        import cinematic as _cinematic_mod
+        ost_events = _cinematic_mod.generate_staccato_ostinato(bars_data, root_midi, bpm, tpb=src_tpb)
+        _ost_is_cinematic = True
+    except Exception:
+        ost_events, _ = generate_ostinato(chords_for_ostinato, bpm, tension)
+        _ost_is_cinematic = False
     piano_notes = generate_piano_melody(root_midi, bars_data, tension)
 
     # Build 8 VVC tracks (Ch 0 to Ch 7)
@@ -2867,8 +2875,12 @@ def generate_quartet_over_midi(filepath, out_dir):
     # ── Track 6: Spiccato Ostinato - Short Strings (GM 49 String Ensemble 2, Ch 6) ──
     tracks_events[6].append((0, 'program', 49, 0, 6))
     for ev in ost_events:
-        tick, etype, note, velocity, old_ch = ev
-        # Reroute to Ch 6
+        if _ost_is_cinematic:
+            # cinematic generator returns 4-tuples: (tick, type, note, velocity)
+            tick, etype, note, velocity = ev
+        else:
+            # legacy generator returns 5-tuples: (tick, type, note, velocity, ch)
+            tick, etype, note, velocity, _ = ev
         tracks_events[6].append((tick, etype, note, velocity, 6))
     specialist_styles.generate_cc_curve(tracks_events[6], 11, 0, len(chord_groups) * 4 * tpb,
                                          start_val=int(50 + tension * 30), end_val=int(70 + tension * 30), curve_type="sine", ch=6)
@@ -3606,8 +3618,7 @@ def show_instrument_routing():
 """)
 
 
-def main():
-    out_dir = 'midi_files'
+def main(out_dir='midi_files'):
     os.makedirs(out_dir, exist_ok=True)
 
     print("""
@@ -3668,7 +3679,7 @@ def main():
             num_bars = 4
             length_label = "4-Bar Loop"
             
-            gen_mode = getattr(globals(), 'GENERATION_MODE', 'simple')
+            gen_mode = globals().get('GENERATION_MODE', 'simple')
             if gen_mode == 'decoupled':
                 roman_numerals = RN_MINOR if is_minor else RN_MAJOR
                 start_chord = progression[0]
