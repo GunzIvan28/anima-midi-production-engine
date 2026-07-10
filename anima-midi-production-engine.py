@@ -61,6 +61,15 @@ try:
     print("  [LOADING] Initializing Spanish Guitar Engine...")
     sg_engine = _load_module('spanish_guitar', 'spanish_guitar.py')
 
+    print("  [LOADING] Initializing Spanish Family Engine...")
+    sf_engine = _load_module('spanish_family', 'spanish_family.py')
+
+    print("  [LOADING] Initializing World Composer Engine...")
+    wc_engine = _load_module('world_composer', 'world_composer.py')
+
+    print("  [LOADING] Initializing Solo Performance Engine...")
+    solo_engine = _load_module('solo_performance', 'solo_performance.py')
+
     print("  [LOADING] Initializing Cinematic Engine...")
     cinematic_engine = _load_module('cinematic', 'cinematic.py')
 
@@ -87,6 +96,9 @@ def _propagate_generation_mode(generation_mode):
     major_engine.GENERATION_MODE = generation_mode
     vvc_engine.GENERATION_MODE = generation_mode
     sg_engine.GENERATION_MODE = generation_mode
+    sf_engine.GENERATION_MODE = generation_mode
+    wc_engine.GENERATION_MODE = generation_mode
+    solo_engine.GENERATION_MODE = generation_mode
 
 
 def _prompt_midi_path(prompt="  Enter path to MIDI file: "):
@@ -308,6 +320,9 @@ def _run_guitar_specialist_menu(out_dir):
 GUITAR & SPECIALIST STYLES
 
   1 -> Spanish Guitar Composer
+  2 -> Spanish Family Composer
+  3 -> World Composer
+  4 -> Solo Performance
   B -> Back
 """)
         _div()
@@ -321,8 +336,23 @@ GUITAR & SPECIALIST STYLES
                 sg_engine.main(out_dir)
             except Exception as e:
                 print(f"  [ERROR] Spanish Guitar Engine failure: {e}")
+        elif choice == '2':
+            try:
+                sf_engine.main(out_dir)
+            except Exception as e:
+                print(f"  [ERROR] Spanish Family Engine failure: {e}")
+        elif choice == '3':
+            try:
+                wc_engine.main(out_dir)
+            except Exception as e:
+                print(f"  [ERROR] World Composer Engine failure: {e}")
+        elif choice == '4':
+            try:
+                solo_engine.main(out_dir)
+            except Exception as e:
+                print(f"  [ERROR] Solo Performance Engine failure: {e}")
         else:
-            print("  [!] Invalid choice. Enter 1 or B.\n")
+            print("  [!] Invalid choice. Enter 1, 2, 3, 4 or B.\n")
 
 
 def _run_help_menu():
