@@ -804,6 +804,7 @@ def compose_cinematic_major_track(mood_id, bpm, root_name, root_val):
 # ── CLI APPLICATION ─────────────────────────────────────────────────────────
 
 def main(out_dir='midi_files'):
+    os.makedirs(out_dir, exist_ok=True)
     print("""
   ╔════════════════════════════════════════════════════════════╗
   ║    M O D E R N   C I N E M A T I C   T R A I L E R         ║
@@ -827,75 +828,81 @@ def main(out_dir='midi_files'):
         'Db': 'C#', 'D#': 'Eb', 'Gb': 'F#', 'A#': 'Bb', 'Ab': 'G#',
     }
 
-    # ── 1. Choose tonality ───────────────────────────────────────────────────
-    print("  Select Tonality:")
-    print("    1 -> Minor (Dark, Gothic, Ethereal, Action)")
-    print("    2 -> Major (Triumphant, Celestial, Pastoral)")
-    tonality_str = input("  --> ").strip()
-    is_major = (tonality_str == '2')
+    while True:
+        # ── 1. Choose tonality ───────────────────────────────────────────────
+        print("  Select Tonality:")
+        print("    1 -> Minor (Dark, Gothic, Ethereal, Action)")
+        print("    2 -> Major (Triumphant, Celestial, Pastoral)")
+        tonality_str = input("  --> ").strip()
+        is_major = (tonality_str == '2')
 
-    # ── 2. Choose mood ───────────────────────────────────────────────────────
-    if is_major:
-        print("\n  Select Major Cinematic Mood:")
-        print("    1 -> Triumphant Ascent  (Full brass fanfare, SATB choir, piano — 10 tracks)")
-        print("    2 -> Celestial Wonder   (Lydian celesta arps, SATB choir, piano — 10 tracks)")
-        print("    3 -> Golden Pastoral    (Harp, flute, SATB choir, piano         — 11 tracks)")
-    else:
-        print("\n  Select Minor Cinematic Mood:")
-        print("    1 -> Ethereal Gothic Fantasy (Harps, SATB choir, piano    — 10 tracks)")
-        print("    2 -> Epic Heroic Action      (Heavy brass, SATB choir, piano — 10 tracks)")
-        print("    3 -> Dark Assassin Stealth   (Nylon guitars, dark piano, SATB choir, piano — 11 tracks)")
-    mood_str = input("  --> ").strip()
-    mood_id  = int(mood_str) if mood_str in ('1', '2', '3') else 1
+        # ── 2. Choose mood ───────────────────────────────────────────────────
+        if is_major:
+            print("\n  Select Major Cinematic Mood:")
+            print("    1 -> Triumphant Ascent  (Full brass fanfare, SATB choir, piano — 10 tracks)")
+            print("    2 -> Celestial Wonder   (Lydian celesta arps, SATB choir, piano — 10 tracks)")
+            print("    3 -> Golden Pastoral    (Harp, flute, SATB choir, piano         — 11 tracks)")
+        else:
+            print("\n  Select Minor Cinematic Mood:")
+            print("    1 -> Ethereal Gothic Fantasy (Harps, SATB choir, piano    — 10 tracks)")
+            print("    2 -> Epic Heroic Action      (Heavy brass, SATB choir, piano — 10 tracks)")
+            print("    3 -> Dark Assassin Stealth   (Nylon guitars, dark piano, SATB choir, piano — 11 tracks)")
+        mood_str = input("  --> ").strip()
+        mood_id  = int(mood_str) if mood_str in ('1', '2', '3') else 1
 
-    # ── 3. Choose key ────────────────────────────────────────────────────────
-    available_keys = sorted(list(ROOTS.keys()))
-    tonality_label = "Major" if is_major else "Minor"
-    print(f"\n  Select {tonality_label} Key (Available: {', '.join(available_keys)}):")
-    root_name_raw = input("  --> ").strip()
+        # ── 3. Choose key ────────────────────────────────────────────────────
+        available_keys = sorted(list(ROOTS.keys()))
+        tonality_label = "Major" if is_major else "Minor"
+        print(f"\n  Select {tonality_label} Key (Available: {', '.join(available_keys)}):")
+        root_name_raw = input("  --> ").strip()
 
-    if len(root_name_raw) >= 1:
-        root_name = root_name_raw[0].upper() + root_name_raw[1:]
-    else:
-        root_name = 'C' if is_major else 'D'
+        if len(root_name_raw) >= 1:
+            root_name = root_name_raw[0].upper() + root_name_raw[1:]
+        else:
+            root_name = 'C' if is_major else 'D'
 
-    if root_name in ENHARMONICS:
-        root_name = ENHARMONICS[root_name]
-    if root_name not in ROOTS:
-        root_name = 'C' if is_major else 'D'
+        if root_name in ENHARMONICS:
+            root_name = ENHARMONICS[root_name]
+        if root_name not in ROOTS:
+            root_name = 'C' if is_major else 'D'
 
-    root_val = ROOTS[root_name]
+        root_val = ROOTS[root_name]
 
-    # ── 4. Tempo ─────────────────────────────────────────────────────────────
-    print("\n  Select Tempo (BPM) [e.g. 100, 120, 140]:")
-    bpm_str = input("  --> ").strip()
-    try:
-        bpm = int(bpm_str)
-    except ValueError:
-        bpm = 120 if is_major else 110
+        # ── 4. Tempo ─────────────────────────────────────────────────────────
+        print("\n  Select Tempo (BPM) [e.g. 100, 120, 140]:")
+        bpm_str = input("  --> ").strip()
+        try:
+            bpm = int(bpm_str)
+        except ValueError:
+            bpm = 120 if is_major else 110
 
-    # ── 5. Generate ──────────────────────────────────────────────────────────
-    print("\n  [GENERATING] Composing 4-bar cinematic arrangement...")
-    if is_major:
-        mid, mood_name, prog_label = compose_cinematic_major_track(mood_id, bpm, root_name, root_val)
-    else:
-        mid, mood_name, prog_label = compose_cinematic_track(mood_id, bpm, root_name, root_val)
+        # ── 5. Generate ──────────────────────────────────────────────────────
+        print("\n  [GENERATING] Composing 4-bar cinematic arrangement...")
+        if is_major:
+            mid, mood_name, prog_label = compose_cinematic_major_track(mood_id, bpm, root_name, root_val)
+        else:
+            mid, mood_name, prog_label = compose_cinematic_track(mood_id, bpm, root_name, root_val)
 
-    project_title = f"{random.choice(ADJECTIVES)}_{random.choice(NOUNS)}"
-    fname = (
-        f"{project_title}__Cinematic_{mood_name.replace(' ', '_')}__{root_name}"
-        f"_{tonality_label}__{bpm}BPM__{prog_label}"
-    )
-    fpath = os.path.join(out_dir, fname + ".mid")
-    idx = 1
-    while os.path.exists(fpath):
-        fpath = os.path.join(out_dir, f"{fname}_v{idx}.mid")
-        idx += 1
+        project_title = f"{random.choice(ADJECTIVES)}_{random.choice(NOUNS)}"
+        fname = (
+            f"{project_title}__Cinematic_{mood_name.replace(' ', '_')}__{root_name}"
+            f"_{tonality_label}__{bpm}BPM__{prog_label}"
+        )
+        fpath = os.path.join(out_dir, fname + ".mid")
+        idx = 1
+        while os.path.exists(fpath):
+            fpath = os.path.join(out_dir, f"{fname}_v{idx}.mid")
+            idx += 1
 
-    mid.save(fpath)
-    print(f"  [SUCCESS] Generated {len(mid.tracks)-1} dynamic tracks!")
-    print(f"  [SAVED]   {os.path.basename(fpath)}")
-    print(f"  [PATH]    {fpath}\n")
+        mid.save(fpath)
+        print(f"  [SUCCESS] Generated {len(mid.tracks)-1} dynamic tracks!")
+        print(f"  [SAVED]   {os.path.basename(fpath)}")
+        print(f"  [PATH]    {fpath}\n")
+
+        print("  [G] Generate again  [B] Back  [Q] Quit")
+        sub = input("  --> ").strip().lower()
+        if sub in ("b", "q"):
+            return
 
 if __name__ == '__main__':
     main()

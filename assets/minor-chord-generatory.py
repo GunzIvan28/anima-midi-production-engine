@@ -352,9 +352,16 @@ def generate_melody(root_note, progression, tension=0.5):
             bars_data.append(([t % 12 for t in ct_raw], [t % 12 for t in scale]))
     return _generate_melody_core(root_note, bars_data, tension)
 
+LEAD_COUNTER_RANGE = (58, 76)
+LEAD_COUNTER_CENTER = 67
+
+
 def _violin_pitch_in_shared_octave(root_note, offset):
-    """Place a scale offset in the single octave shared by both violins."""
-    return root_note + 36 + (offset % 12)
+    """Place a scale offset in a warm shared violin register."""
+    pc = (root_note + offset) % 12
+    lo, hi = LEAD_COUNTER_RANGE
+    candidates = [pitch for pitch in range(lo, hi + 1) if pitch % 12 == pc]
+    return min(candidates, key=lambda pitch: (abs(pitch - LEAD_COUNTER_CENTER), pitch))
 
 def _sounding_note_at_beat(events, target_beat):
     """Return the lead note sounding at an absolute beat position."""
@@ -441,7 +448,7 @@ def _generate_melody_core(root_note, bars_data, tension=0.5):
             matrix = get_markov_matrix(sc)
             
             strong = (beat_pos % 2.0 < 0.01)
-            if strong or random.random() < 0.5:
+            if strong or random.random() < 0.75:
                 off = random.choice(ct)
             else:
                 off = pick_markov_next(cur, sc, matrix)

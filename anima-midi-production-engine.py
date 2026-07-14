@@ -68,7 +68,10 @@ try:
     wc_engine = _load_module('world_composer', 'world_composer.py')
 
     print("  [LOADING] Initializing Solo Performance Engine...")
-    solo_engine = _load_module('solo_performance', 'solo_performance.py')
+    solo_engine = _load_module('solo_performance_minor', 'solo_performance_minor.py')
+
+    print("  [LOADING] Initializing Major Solo Performance Engine...")
+    major_solo_engine = _load_module('solo_performance_major', 'solo_performance_major.py')
 
     print("  [LOADING] Initializing Cinematic Engine...")
     cinematic_engine = _load_module('cinematic', 'cinematic.py')
@@ -99,6 +102,7 @@ def _propagate_generation_mode(generation_mode):
     sf_engine.GENERATION_MODE = generation_mode
     wc_engine.GENERATION_MODE = generation_mode
     solo_engine.GENERATION_MODE = generation_mode
+    major_solo_engine.GENERATION_MODE = generation_mode
 
 
 def _prompt_midi_path(prompt="  Enter path to MIDI file: "):
@@ -303,11 +307,38 @@ CINEMATIC TRAILER ENGINE
             if choice == 'b':
                 return
             elif choice == '1':
-                _run_cinematic_direct(out_dir, is_major=False)
+                while True:
+                    _run_cinematic_direct(out_dir, is_major=False)
+                    print("  [G] Generate again  [B] Back  [Q] Quit")
+                    sub = input("  --> ").strip().lower()
+                    if sub == 'g':
+                        continue
+                    if sub == 'q':
+                        return
+                    if sub == 'b':
+                        break
             elif choice == '2':
-                _run_cinematic_direct(out_dir, is_major=True)
+                while True:
+                    _run_cinematic_direct(out_dir, is_major=True)
+                    print("  [G] Generate again  [B] Back  [Q] Quit")
+                    sub = input("  --> ").strip().lower()
+                    if sub == 'g':
+                        continue
+                    if sub == 'q':
+                        return
+                    if sub == 'b':
+                        break
             elif choice == '3':
-                _run_cinematic_direct(out_dir, is_major=None)
+                while True:
+                    _run_cinematic_direct(out_dir, is_major=None)
+                    print("  [G] Generate again  [B] Back  [Q] Quit")
+                    sub = input("  --> ").strip().lower()
+                    if sub == 'g':
+                        continue
+                    if sub == 'q':
+                        return
+                    if sub == 'b':
+                        break
             else:
                 print("  [!] Invalid choice. Enter 1-3 or B.\n")
         except Exception as e:
@@ -322,7 +353,8 @@ GUITAR & SPECIALIST STYLES
   1 -> Spanish Guitar Composer
   2 -> Spanish Family Composer
   3 -> World Composer
-  4 -> Solo Performance
+  4 -> Solo Performance (Minor)
+  5 -> Solo Performance (Major)
   B -> Back
 """)
         _div()
@@ -351,8 +383,13 @@ GUITAR & SPECIALIST STYLES
                 solo_engine.main(out_dir)
             except Exception as e:
                 print(f"  [ERROR] Solo Performance Engine failure: {e}")
+        elif choice == '5':
+            try:
+                major_solo_engine.main(out_dir)
+            except Exception as e:
+                print(f"  [ERROR] Major Solo Performance Engine failure: {e}")
         else:
-            print("  [!] Invalid choice. Enter 1, 2, 3, 4 or B.\n")
+            print("  [!] Invalid choice. Enter 1, 2, 3, 4, 5 or B.\n")
 
 
 def _run_help_menu():
