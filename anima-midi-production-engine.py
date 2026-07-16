@@ -58,9 +58,6 @@ try:
     print("  [LOADING] Initializing VVC Orchestration Engine...")
     vvc_engine = _load_module('VVC', 'VVC.py')
 
-    print("  [LOADING] Initializing Spanish Guitar Engine...")
-    sg_engine = _load_module('spanish_guitar', 'spanish_guitar.py')
-
     print("  [LOADING] Initializing Spanish Family Engine...")
     sf_engine = _load_module('spanish_family', 'spanish_family.py')
 
@@ -98,7 +95,6 @@ def _propagate_generation_mode(generation_mode):
     minor_engine.GENERATION_MODE = generation_mode
     major_engine.GENERATION_MODE = generation_mode
     vvc_engine.GENERATION_MODE = generation_mode
-    sg_engine.GENERATION_MODE = generation_mode
     sf_engine.GENERATION_MODE = generation_mode
     wc_engine.GENERATION_MODE = generation_mode
     solo_engine.GENERATION_MODE = generation_mode
@@ -175,19 +171,16 @@ def _run_cinematic_direct(out_dir, is_major=None):
         is_major = random.choice([True, False])
         print(f"  Surprise tonality: {'Major' if is_major else 'Minor'}")
 
-    if is_major:
-        print("\n  Select Major Cinematic Mood:")
-        print("    1 -> Triumphant Ascent")
-        print("    2 -> Celestial Wonder")
-        print("    3 -> Golden Pastoral")
-    else:
-        print("\n  Select Minor Cinematic Mood:")
-        print("    1 -> Ethereal Gothic Fantasy")
-        print("    2 -> Epic Heroic Action")
-        print("    3 -> Dark Assassin Stealth")
+    mood_names = (cinematic_engine.CINEMATIC_MAJOR_MOOD_NAMES if is_major
+                  else cinematic_engine.CINEMATIC_MINOR_MOOD_NAMES)
+    mood_pools = (cinematic_engine.CINEMATIC_MAJOR_MOOD_POOLS if is_major
+                  else cinematic_engine.CINEMATIC_MINOR_MOOD_POOLS)
+    print(f"\n  Select {'Major' if is_major else 'Minor'} Cinematic Mood:")
+    for index, name in enumerate(mood_names, 1):
+        print(f"    {index} -> {name} ({len(mood_pools[name])} progressions)")
 
     mood_str = input("  --> ").strip()
-    mood_id = int(mood_str) if mood_str in ('1', '2', '3') else random.randint(1, 3)
+    mood_id = int(mood_str) if mood_str.isdigit() and 1 <= int(mood_str) <= len(mood_names) else random.randint(1, len(mood_names))
     root_name, root_val = _select_cinematic_key(is_major)
     bpm = _select_cinematic_bpm(is_major)
 
@@ -350,11 +343,10 @@ def _run_guitar_specialist_menu(out_dir):
         print("""
 GUITAR & SPECIALIST STYLES
 
-  1 -> Spanish Guitar Composer
-  2 -> Spanish Family Composer
-  3 -> World Composer
-  4 -> Solo Performance (Minor)
-  5 -> Solo Performance (Major)
+  1 -> Spanish Family Composer (6 minor moods · 120 progressions · fixed 4 bars)
+  2 -> World Composer
+  3 -> Solo Performance (Minor)
+  4 -> Solo Performance (Major)
   B -> Back
 """)
         _div()
@@ -365,31 +357,26 @@ GUITAR & SPECIALIST STYLES
             return
         elif choice == '1':
             try:
-                sg_engine.main(out_dir)
-            except Exception as e:
-                print(f"  [ERROR] Spanish Guitar Engine failure: {e}")
-        elif choice == '2':
-            try:
                 sf_engine.main(out_dir)
             except Exception as e:
                 print(f"  [ERROR] Spanish Family Engine failure: {e}")
-        elif choice == '3':
+        elif choice == '2':
             try:
                 wc_engine.main(out_dir)
             except Exception as e:
                 print(f"  [ERROR] World Composer Engine failure: {e}")
-        elif choice == '4':
+        elif choice == '3':
             try:
                 solo_engine.main(out_dir)
             except Exception as e:
                 print(f"  [ERROR] Solo Performance Engine failure: {e}")
-        elif choice == '5':
+        elif choice == '4':
             try:
                 major_solo_engine.main(out_dir)
             except Exception as e:
                 print(f"  [ERROR] Major Solo Performance Engine failure: {e}")
         else:
-            print("  [!] Invalid choice. Enter 1, 2, 3, 4, 5 or B.\n")
+            print("  [!] Invalid choice. Enter 1, 2, 3, 4 or B.\n")
 
 
 def _run_help_menu():

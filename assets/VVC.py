@@ -3528,14 +3528,15 @@ def show_instrument_routing():
     Ch 7  ->  Piano Melody - Colour        GM 0
 
   ====================================================================
-   ENGINE 5 -- Spanish Guitar Composer
+   ENGINE 5 -- Spanish Family Composer
   ====================================================================
-   Generates a 4-track nylon-guitar arrangement:
+   Generates a 5-track Spanish family arrangement:
 
-    Ch 0  ->  Bajo  (bass thumb strokes)       GM 25  (Steel Guitar)
-    Ch 1  ->  Rasgueado  (strummed chords)     GM 25
-    Ch 2  ->  Alzapua  (counter-melody thumb)  GM 24  (Nylon Guitar)
-    Ch 3  ->  Picado  (single-note lead runs)  GM 24
+    Ch 0  ->  Harmony / Arpeggio       GM 24  (Nylon Guitar)
+    Ch 1  ->  Counter-Melody           GM 24  (Nylon Guitar)
+    Ch 2  ->  Bass Line                GM 32  (Acoustic Bass)
+    Ch 3  ->  Harmonized Trumpet       GM 56
+    Ch 4  ->  Lyrical Violin           GM 40
 
   ====================================================================
    ENGINE 6 -- Modern Cinematic Trailer Engine

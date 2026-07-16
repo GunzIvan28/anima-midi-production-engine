@@ -7,7 +7,26 @@ allocation, and beautiful, touching chord progressions.
 
 import os
 import random
+import importlib.util
+import sys
+from pathlib import Path
 import mido
+
+
+def _load_sibling(module_name, filename):
+    """Load a sibling engine reliably in CLI, native, and packaged builds."""
+    path = Path(__file__).resolve().parent / filename
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Unable to load cinematic mood source: {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+_solo_minor = _load_sibling("solo_performance_minor", "solo_performance_minor.py")
+_solo_major = _load_sibling("solo_performance_major", "solo_performance_major.py")
 
 # ── SCALES & KEYS ───────────────────────────────────────────────────────────
 SCALE_AEOLIAN  = [0, 2, 3, 5, 7, 8, 10]
@@ -38,6 +57,9 @@ RN_ALL = {
     'vi':  ([9, 0, 4], SCALE_DORIAN),
     'vii°':([11, 2, 5], SCALE_HARMONIC),
     'VII': ([10, 2, 5], SCALE_AEOLIAN)
+    ,'bII': ([1, 5, 8], SCALE_PHRYGIAN)
+    ,'iio': ([2, 5, 8], SCALE_AEOLIAN)
+    ,'viio':([11, 2, 5], SCALE_HARMONIC)
 }
 
 # ── MAJOR SCALES ─────────────────────────────────────────────────────────────
@@ -51,6 +73,7 @@ RN_MAJOR = {
     'I':      ([0, 4, 7],      SCALE_IONIAN),
     'Imaj7':  ([0, 4, 7, 11],  SCALE_IONIAN),
     'ii':     ([2, 5, 9],      SCALE_IONIAN),
+    'ii7':    ([2, 5, 9, 0],   SCALE_IONIAN),
     'iii':    ([4, 7, 11],     SCALE_IONIAN),
     'IV':     ([5, 9, 0],      SCALE_IONIAN),
     'IVmaj7': ([5, 9, 0, 4],   SCALE_LYDIAN),
@@ -65,7 +88,7 @@ RN_MAJOR = {
 }
 
 # Authentic major cinematic progressions
-CINEMATIC_MAJOR_PROGRESSIONS = [
+_LEGACY_CINEMATIC_MAJOR_PROGRESSIONS = [
     # Triumphant / Heroic (Ionian & Mixolydian)
     ['I', 'bVII', 'IV', 'I'],
     ['I', 'V', 'vi', 'IV'],
@@ -100,7 +123,7 @@ CINEMATIC_MAJOR_PROGRESSIONS = [
 ]
 
 # Authentic progressions extracted directly from the cinematic sample packs
-CINEMATIC_PROGRESSIONS = [
+_LEGACY_CINEMATIC_PROGRESSIONS = [
     # Kit 1 Style (Epic / Touching)
     ['i', 'III', 'VI', 'VII'],
     ['i', 'III', 'iv', 'VII'],
@@ -133,6 +156,51 @@ CINEMATIC_PROGRESSIONS = [
     ['i', 'iv', 'v', 'VI'],
     ['i', 'v', 'i', 'V']
 ]
+
+# Cinematic moods deliberately share the progression libraries used by the
+# corresponding Solo Performance engines. The cinematic orchestration and all
+# event generators below remain independent and unchanged.
+CINEMATIC_MAJOR_MOOD_POOLS = {
+    mood: [list(chords) for _label, _scale, chords in pool]
+    for mood, pool in _solo_major.MOOD_POOLS.items()
+}
+CINEMATIC_MAJOR_MOOD_NAMES = tuple(CINEMATIC_MAJOR_MOOD_POOLS)
+
+_MINOR_SOLO_GROUPS = _solo_minor._progression_mood_groups()
+CINEMATIC_MINOR_MOOD_NAMES = (
+    "Minor Engine - Hopeful / Uplifting",
+    "Minor Engine - Romantic / Emotional",
+    "Minor Engine - Sorrowful / Sad / Heartbreaking",
+    "Minor Engine - Tragic / Epic",
+    "Minor Engine - Yearning / Nostalgic",
+)
+CINEMATIC_MINOR_MOOD_POOLS = {
+    mood: [list(chords) for _label, _scale, chords in _MINOR_SOLO_GROUPS[mood]]
+    for mood in CINEMATIC_MINOR_MOOD_NAMES
+}
+
+# Preserve the existing three orchestration recipes by assigning each new mood
+# to the closest established cinematic profile.
+_MAJOR_ORCHESTRATION_PROFILE = (1, 3, 2, 1, 2, 3)
+_MINOR_ORCHESTRATION_PROFILE = (1, 1, 3, 2, 1)
+
+
+def _validate_mood_pools():
+    for name, pool in CINEMATIC_MAJOR_MOOD_POOLS.items():
+        if not pool or any(len(prog) != 4 for prog in pool):
+            raise ValueError(f"Invalid Cinematic Major mood pool: {name}")
+        unknown = {symbol for prog in pool for symbol in prog if symbol not in RN_MAJOR}
+        if unknown:
+            raise ValueError(f"Unsupported Cinematic Major chords in {name}: {sorted(unknown)}")
+    for name, pool in CINEMATIC_MINOR_MOOD_POOLS.items():
+        if len(pool) != 14 or any(len(prog) != 4 for prog in pool):
+            raise ValueError(f"Cinematic Minor mood must contain 14 four-bar progressions: {name}")
+        unknown = {symbol for prog in pool for symbol in prog if symbol not in RN_ALL}
+        if unknown:
+            raise ValueError(f"Unsupported Cinematic Minor chords in {name}: {sorted(unknown)}")
+
+
+_validate_mood_pools()
 
 # ── PROCEDURAL GENERATORS ───────────────────────────────────────────────────
 
@@ -659,8 +727,12 @@ def compose_cinematic_track(mood_id, bpm, root_name, root_val):
     tempo_track.append(mido.MetaMessage('set_tempo', tempo=mido.bpm2tempo(bpm), time=0))
     tempo_track.append(mido.MetaMessage('time_signature', numerator=4, denominator=4, time=0))
     
-    # Select Progression
-    prog_raw = random.choice(CINEMATIC_PROGRESSIONS)
+    mood_index = max(0, min(int(mood_id) - 1, len(CINEMATIC_MINOR_MOOD_NAMES) - 1))
+    mood_name = CINEMATIC_MINOR_MOOD_NAMES[mood_index]
+    orchestration_profile = _MINOR_ORCHESTRATION_PROFILE[mood_index]
+
+    # Select a progression specifically from the chosen Solo Minor mood.
+    prog_raw = random.choice(CINEMATIC_MINOR_MOOD_POOLS[mood_name])
     
     bars_data = []
     for rn in prog_raw:
@@ -682,9 +754,8 @@ def compose_cinematic_track(mood_id, bpm, root_name, root_val):
     build_track(mid, "Staccato / Spiccato Strings", 48, ch, staccato); ch += 1
     
     # Generate Mood-Specific Tracks
-    if mood_id == 1:
+    if orchestration_profile == 1:
         # Ethereal Gothic Fantasy: Choir, Harp, Piano
-        mood_name = "Ethereal Gothic Fantasy"
         choir_satb = generate_choir_satb(bars_data, root_val, tpb)
         harp  = generate_harp_arpeggios(bars_data, root_val, tpb)
         piano = generate_piano_melody(bars_data, root_val, tpb)
@@ -694,9 +765,8 @@ def compose_cinematic_track(mood_id, bpm, root_name, root_val):
         build_track(mid, "Harp / Nylon Arps", 46, ch, harp); ch += 1
         build_track(mid, "Piano Melody", 0, ch, piano); ch += 1
         
-    elif mood_id == 2:
+    elif orchestration_profile == 2:
         # Epic Heroic Action: Heavy Brass, Choir, Piano
-        mood_name = "Epic Heroic Action"
         brass = generate_heavy_brass(bars_data, root_val, tpb)
         choir_satb = generate_choir_satb(bars_data, root_val, tpb)
         piano = generate_piano_melody(bars_data, root_val, tpb)
@@ -708,7 +778,6 @@ def compose_cinematic_track(mood_id, bpm, root_name, root_val):
         
     else:
         # Dark Assassin Stealth: Harp/Guitar, Sparse Piano, Choir, Piano Melody
-        mood_name = "Dark Assassin Stealth"
         harp  = generate_harp_arpeggios(bars_data, root_val, tpb)
         dark_piano = generate_piano_melody(bars_data, root_val, tpb)
         choir_satb = generate_choir_satb(bars_data, root_val, tpb)
@@ -740,8 +809,12 @@ def compose_cinematic_major_track(mood_id, bpm, root_name, root_val):
     tempo_track.append(mido.MetaMessage('set_tempo', tempo=mido.bpm2tempo(bpm), time=0))
     tempo_track.append(mido.MetaMessage('time_signature', numerator=4, denominator=4, time=0))
 
-    # Select a major progression
-    prog_raw  = random.choice(CINEMATIC_MAJOR_PROGRESSIONS)
+    mood_index = max(0, min(int(mood_id) - 1, len(CINEMATIC_MAJOR_MOOD_NAMES) - 1))
+    mood_name = CINEMATIC_MAJOR_MOOD_NAMES[mood_index]
+    orchestration_profile = _MAJOR_ORCHESTRATION_PROFILE[mood_index]
+
+    # Select a progression specifically from the chosen Solo Major mood.
+    prog_raw  = random.choice(CINEMATIC_MAJOR_MOOD_POOLS[mood_name])
     bars_data = []
     for rn in prog_raw:
         ct_raw, scale = RN_MAJOR[rn]
@@ -761,9 +834,8 @@ def compose_cinematic_major_track(mood_id, bpm, root_name, root_val):
     build_track(mid, "Staccato / Spiccato Strings", 48, ch, staccato); ch += 1
 
     # ── Mood-specific tracks ─────────────────────────────────────────────────
-    if mood_id == 1:
+    if orchestration_profile == 1:
         # Triumphant Ascent: Brass Fanfare + SATB Choir + Piano  (10 tracks)
-        mood_name  = "Triumphant Ascent"
         brass      = generate_brass_fanfare(bars_data, root_val, tpb)
         choir_satb = generate_choir_satb(bars_data, root_val, tpb)
         piano      = generate_piano_melody(bars_data, root_val, tpb)
@@ -773,9 +845,8 @@ def compose_cinematic_major_track(mood_id, bpm, root_name, root_val):
             build_track(mid, f"Choir - {voice.capitalize()}", 52, ch, choir_satb[voice]); ch += 1
         build_track(mid, "Piano Melody", 0, ch, piano); ch += 1
 
-    elif mood_id == 2:
+    elif orchestration_profile == 2:
         # Celestial Wonder: Celesta Arps + SATB Choir + Piano  (10 tracks)
-        mood_name  = "Celestial Wonder"
         celesta    = generate_celesta_arpeggios(bars_data, root_val, tpb)
         choir_satb = generate_choir_satb(bars_data, root_val, tpb)
         piano      = generate_piano_melody(bars_data, root_val, tpb)
@@ -787,7 +858,6 @@ def compose_cinematic_major_track(mood_id, bpm, root_name, root_val):
 
     else:
         # Golden Pastoral: Harp Arps + Woodwind Lead + Choir + Piano  (11 tracks)
-        mood_name = "Golden Pastoral"
         harp      = generate_harp_arpeggios(bars_data, root_val, tpb)
         woodwind  = generate_woodwind_lead(bars_data, root_val, tpb)
         choir_satb = generate_choir_satb(bars_data, root_val, tpb)
@@ -837,18 +907,13 @@ def main(out_dir='midi_files'):
         is_major = (tonality_str == '2')
 
         # ── 2. Choose mood ───────────────────────────────────────────────────
-        if is_major:
-            print("\n  Select Major Cinematic Mood:")
-            print("    1 -> Triumphant Ascent  (Full brass fanfare, SATB choir, piano — 10 tracks)")
-            print("    2 -> Celestial Wonder   (Lydian celesta arps, SATB choir, piano — 10 tracks)")
-            print("    3 -> Golden Pastoral    (Harp, flute, SATB choir, piano         — 11 tracks)")
-        else:
-            print("\n  Select Minor Cinematic Mood:")
-            print("    1 -> Ethereal Gothic Fantasy (Harps, SATB choir, piano    — 10 tracks)")
-            print("    2 -> Epic Heroic Action      (Heavy brass, SATB choir, piano — 10 tracks)")
-            print("    3 -> Dark Assassin Stealth   (Nylon guitars, dark piano, SATB choir, piano — 11 tracks)")
+        mood_names = CINEMATIC_MAJOR_MOOD_NAMES if is_major else CINEMATIC_MINOR_MOOD_NAMES
+        mood_pools = CINEMATIC_MAJOR_MOOD_POOLS if is_major else CINEMATIC_MINOR_MOOD_POOLS
+        print(f"\n  Select {'Major' if is_major else 'Minor'} Cinematic Mood:")
+        for index, name in enumerate(mood_names, 1):
+            print(f"    {index} -> {name} ({len(mood_pools[name])} progressions)")
         mood_str = input("  --> ").strip()
-        mood_id  = int(mood_str) if mood_str in ('1', '2', '3') else 1
+        mood_id = int(mood_str) if mood_str.isdigit() and 1 <= int(mood_str) <= len(mood_names) else 1
 
         # ── 3. Choose key ────────────────────────────────────────────────────
         available_keys = sorted(list(ROOTS.keys()))

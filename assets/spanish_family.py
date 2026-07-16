@@ -120,19 +120,108 @@ PROJECT_NOUNS = [
 
 # ── MOOD PRESETS (Native Spanish, Minor Engine, and Major Engine) ──────────────
 NATIVE_MOODS = {
-    '1': {'name': 'Duende Oscuro',     'desc': 'Dark passion and deep soul of Flamenco',  'scale': 'phrygian_dominant',    'is_minor': True,  'tension': 0.75, 'bpm_range': (120, 145)},
-    '2': {'name': 'Lamento Andaluz',   'desc': 'Melancholy and tragic beauty',             'scale': 'harmonic_minor',       'is_minor': True,  'tension': 0.60, 'bpm_range': (95,  120)},
-    '3': {'name': 'Misterio Nocturno', 'desc': 'Spanish night, modal mystery',             'scale': 'phrygian',             'is_minor': True,  'tension': 0.50, 'bpm_range': (90,  115)},
-    '4': {'name': 'Nostalgia Gitana',  'desc': 'Passionate dorian yearning',               'scale': 'dorian',               'is_minor': True,  'tension': 0.55, 'bpm_range': (100, 125)},
-    '5': {'name': 'Luz del Sol',       'desc': 'Radiant joy and warm morning sun',         'scale': 'ionian',               'is_minor': False, 'tension': 0.40, 'bpm_range': (110, 135)},
-    '6': {'name': 'Brisa de Cadiz',    'desc': 'Warm ocean breeze with Spanish edge',      'scale': 'mixolydian',           'is_minor': False, 'tension': 0.50, 'bpm_range': (105, 130)},
-    '7': {'name': 'Canto de Esperanza','desc': 'Hopeful and uplifting fantasy',            'scale': 'mixolydian',           'is_minor': False, 'tension': 0.45, 'bpm_range': (100, 125)},
-    '8': {'name': 'Fuego de Sevilla',  'desc': 'Festive and energetic major drive',        'scale': 'double_harmonic_major','is_minor': False, 'tension': 0.70, 'bpm_range': (125, 145)},
-    # ── Touching Spanish presets — modeled on test MIDI emotional profiles ──────
-    '9': {'name': 'Alma Gitana',       'desc': 'Andalusian cadence — raw soulful descent','scale': 'phrygian_dominant',    'is_minor': True,  'tension': 0.65, 'bpm_range': (111, 130)},
-    'A': {'name': 'Llanto del Sur',    'desc': 'Weeping south — harmonic minor lament',   'scale': 'harmonic_minor',       'is_minor': True,  'tension': 0.55, 'bpm_range': (100, 120)},
-    'B': {'name': 'Camino de Sombras', 'desc': 'Path of shadows — dorian bittersweet',    'scale': 'dorian',               'is_minor': True,  'tension': 0.45, 'bpm_range': (95,  118)},
-    'C': {'name': 'Serenata Oscura',   'desc': 'Dark serenade — natural minor nocturne',  'scale': 'natural_minor',        'is_minor': True,  'tension': 0.50, 'bpm_range': (100, 125)},
+    '1': {
+        'name': 'Lamento Andaluz [Andalusian Lament]',
+        'desc': 'Tragic dignity, Spanish lament, and a strong harmonic-minor return',
+        'scale': 'harmonic_minor', 'is_minor': True, 'tension': 0.60, 'bpm_range': (88, 116),
+        'progressions': [
+            {'chords':['i','VII','VI','V'],'label':'Classic Andalusian'}, {'chords':['i','iv','V','i'],'label':'Weeping Cadence'},
+            {'chords':['i','VI','iv','V'],'label':'Romantic Lament'}, {'chords':['i','iv','VII','III'],'label':'Fado Descent'},
+            {'chords':['VI','VII','i','V'],'label':'Deceptive Longing'}, {'chords':['i','III','VI','V'],'label':'Hopeful Grief'},
+            {'chords':['i','VII','VI','VII'],'label':'Breathing Sorrow'}, {'chords':['i','VI','VII','i'],'label':'Circular Lament'},
+            {'chords':['i','iv','i','V'],'label':'Old Lamento'}, {'chords':['III','VII','i','VI'],'label':'Memory of Home'},
+            {'chords':['i','VI','III','VII'],'label':'Distant Tears'}, {'chords':['i','V','VI','iv'],'label':'Falling Prayer'},
+            {'chords':['iv','i','VI','V'],'label':'Andalusian Plea'}, {'chords':['VI','iv','V','i'],'label':'Solemn Return'},
+            {'chords':['i','III','iv','V'],'label':'Ornamental Sorrow'}, {'chords':['i','ii°','V','i'],'label':'Classical Descent'},
+            {'chords':['III','VI','iv','V'],'label':'Southern Elegy'}, {'chords':['i','VII','III','V'],'label':'Lamenting Horizon'},
+            {'chords':['VI','III','iv','V'],'label':'Last Procession'}, {'chords':['i','iv','VI','V'],'label':'Enduring Grief'}
+        ]
+    },
+    '2': {
+        'name': 'Nostalgia Gitana [Gypsy Nostalgia]',
+        'desc': 'Bittersweet memory, distance, warmth, and resilient Dorian yearning',
+        'scale': 'dorian', 'is_minor': True, 'tension': 0.44, 'bpm_range': (90, 118),
+        'progressions': [
+            {'chords':['i','bIII','bVII','IV'],'label':'Old Photograph'}, {'chords':['i','bVII','bIII','IV'],'label':'Wandering Memory'},
+            {'chords':['bIII','bVII','i','v'],'label':'Reflective Road'}, {'chords':['i','IV','bIII','bVII'],'label':'Memory Lane'},
+            {'chords':['bIII','bVII','i','IV'],'label':'Faded Summer'}, {'chords':['i','IV','bIII','v'],'label':'Childhood Echo'},
+            {'chords':['bVII','bIII','i','IV'],'label':'Distant Home'}, {'chords':['i','bVII','IV','bIII'],'label':'Bittersweet Return'},
+            {'chords':['i','IV','bVII','i'],'label':'Dorian Soul'}, {'chords':['i','ii','bVII','i'],'label':'Modal Longing'},
+            {'chords':['i','IV','v','i'],'label':'Passionate Resolve'}, {'chords':['i','bVII','IV','i'],'label':'Warm Return'},
+            {'chords':['i','ii','IV','bVII'],'label':'Yearning Ascent'}, {'chords':['bIII','IV','i','bVII'],'label':'Dorian Nostalgia'},
+            {'chords':['i','v','IV','bVII'],'label':'Dorian Farewell'}, {'chords':['IV','bVII','i','bIII'],'label':'Road to Granada'},
+            {'chords':['i','bIII','IV','i'],'label':'Tender Remembrance'}, {'chords':['bVII','IV','i','v'],'label':'Dust and Sunlight'},
+            {'chords':['i','IV','i','bVII'],'label':'Gypsy Keepsake'}, {'chords':['bIII','i','IV','bVII'],'label':'Echo of Home'}
+        ]
+    },
+    '3': {
+        'name': 'Esperanza Renacida [Renewed Hope]',
+        'desc': 'Hope and uplift emerging from hardship without leaving the minor center',
+        'scale': 'dorian', 'is_minor': True, 'tension': 0.36, 'bpm_range': (98, 126),
+        'progressions': [
+            {'chords':['i','bIII','bVII','IV'],'label':'Light Breaking Through'}, {'chords':['i','bVII','bIII','IV'],'label':'Rising Hope'},
+            {'chords':['bVII','bIII','IV','i'],'label':'Renewed Spirit'}, {'chords':['i','IV','bIII','bVII'],'label':'Open Horizon'},
+            {'chords':['i','bIII','IV','bVII'],'label':'Morning Resolve'}, {'chords':['i','IV','bVII','i'],'label':'Hopeful Return'},
+            {'chords':['bIII','IV','bVII','i'],'label':'Gentle Triumph'}, {'chords':['i','ii','IV','bVII'],'label':'Steps Toward Light'},
+            {'chords':['i','bVII','IV','bIII'],'label':'Courage Rising'}, {'chords':['IV','bIII','bVII','i'],'label':'Warm Renewal'},
+            {'chords':['i','IV','i','bIII'],'label':'Quiet Determination'}, {'chords':['bIII','bVII','IV','i'],'label':'Homeward Hope'},
+            {'chords':['i','ii','bIII','IV'],'label':'Ascending Dawn'}, {'chords':['i','bIII','i','IV'],'label':'Promise Kept'},
+            {'chords':['bVII','IV','bIII','i'],'label':'Clearer Skies'}, {'chords':['i','IV','v','bVII'],'label':'Forward Motion'},
+            {'chords':['i','bIII','IV','i'],'label':'Tender Hope'}, {'chords':['IV','i','bIII','bVII'],'label':'Lifted Heart'},
+            {'chords':['i','bVII','i','IV'],'label':'New Beginning'}, {'chords':['bIII','IV','i','bVII'],'label':'Hope After Rain'}
+        ]
+    },
+    '4': {
+        'name': 'Romance Apasionado [Passionate Romance]',
+        'desc': 'Intimacy, devotion, longing, and emotionally charged harmonic-minor romance',
+        'scale': 'harmonic_minor', 'is_minor': True, 'tension': 0.46, 'bpm_range': (84, 112),
+        'progressions': [
+            {'chords':['i','VI','III','VII'],'label':'Tender Romance'}, {'chords':['i','iv','VII','III'],'label':'Moonlit Serenade'},
+            {'chords':['i','III','VI','V'],'label':'Passionate Resolve'}, {'chords':['i','VI','VII','i'],'label':'Lovers Return'},
+            {'chords':['i','iv','i','V'],'label':'Intimate Cadence'}, {'chords':['VI','VII','i','III'],'label':'Warm Embrace'},
+            {'chords':['i','VII','VI','VII'],'label':'Breathing Love'}, {'chords':['i','III','iv','VI'],'label':'Soft Confession'},
+            {'chords':['i','VI','iv','V'],'label':'Devoted Heart'}, {'chords':['III','VI','iv','V'],'label':'Balcony Promise'},
+            {'chords':['VI','III','i','VII'],'label':'Secret Affection'}, {'chords':['i','III','VII','VI'],'label':'Romantic Sweep'},
+            {'chords':['iv','i','VI','V'],'label':'Longing Touch'}, {'chords':['i','VII','III','VI'],'label':'Candlelit Dance'},
+            {'chords':['VI','VII','III','i'],'label':'Fateful Meeting'}, {'chords':['i','VI','III','V'],'label':'Love Unspoken'},
+            {'chords':['III','VII','i','VI'],'label':'Moonlit Devotion'}, {'chords':['i','iv','VI','VII'],'label':'Heart in Motion'},
+            {'chords':['VI','i','III','VII'],'label':'Endless Vow'}, {'chords':['i','III','iv','V'],'label':'Passionate Serenade'}
+        ]
+    },
+    '5': {
+        'name': 'Tristeza del Alma [Sorrow of the Soul]',
+        'desc': 'Quiet sadness, loneliness, resignation, and unresolved natural-minor reflection',
+        'scale': 'natural_minor', 'is_minor': True, 'tension': 0.43, 'bpm_range': (78, 106),
+        'progressions': [
+            {'chords':['i','bVII','bVI','bVII'],'label':'Nocturne Pulse'}, {'chords':['i','bIII','bVII','bVI'],'label':'Dark Wander'},
+            {'chords':['i','iv','bVII','bVI'],'label':'Autumn Lament'}, {'chords':['i','bVI','bIII','bVII'],'label':'Cinematic Ache'},
+            {'chords':['i','bVII','iv','i'],'label':'Sombre Resolve'}, {'chords':['bVI','bVII','i','bVII'],'label':'Moonlit Walk'},
+            {'chords':['i','bIII','iv','bVII'],'label':'Lost Serenade'}, {'chords':['i','iv','bVI','bVII'],'label':'Quiet Despair'},
+            {'chords':['i','bVI','iv','i'],'label':'Empty Room'}, {'chords':['bIII','bVII','bVI','i'],'label':'Fading Memory'},
+            {'chords':['i','v','bVI','iv'],'label':'Heavy Silence'}, {'chords':['bVI','iv','i','bVII'],'label':'Distant Voice'},
+            {'chords':['i','bIII','bVI','iv'],'label':'Sorrowful Letter'}, {'chords':['i','iv','i','bVII'],'label':'Unanswered Prayer'},
+            {'chords':['bVI','bIII','bVII','i'],'label':'Long Goodbye'}, {'chords':['i','bVII','bIII','iv'],'label':'Grey Morning'},
+            {'chords':['iv','bVI','i','bVII'],'label':'Lonely Courtyard'}, {'chords':['i','v','iv','bVI'],'label':'Quiet Tears'},
+            {'chords':['bIII','iv','bVII','i'],'label':'Resigned Heart'}, {'chords':['i','bVI','bVII','iv'],'label':'Sorrow Without End'}
+        ]
+    },
+    '6': {
+        'name': 'Dolor de un Corazón Roto [Pain of a Broken Heart]',
+        'desc': 'Acute heartbreak, pleading, anguish, and painful harmonic-minor resolution',
+        'scale': 'harmonic_minor', 'is_minor': True, 'tension': 0.72, 'bpm_range': (72, 108),
+        'progressions': [
+            {'chords':['i','VI','iv','V'],'label':'Broken Promise'}, {'chords':['i','iv','ii°','V'],'label':'Pleading Heart'},
+            {'chords':['i','VII','VI','V'],'label':'Falling Apart'}, {'chords':['i','VI','III','V'],'label':'Painful Memory'},
+            {'chords':['i','V','VI','iv'],'label':'Love in Ruins'}, {'chords':['i','iv','i','V'],'label':'Unanswered Cry'},
+            {'chords':['VI','VII','i','V'],'label':'Wound Reopened'}, {'chords':['i','iv','VI','V'],'label':'Last Goodbye'},
+            {'chords':['i','ii°','V','VI'],'label':'Unresolved Anguish'}, {'chords':['III','VI','iv','V'],'label':'Tears at Midnight'},
+            {'chords':['i','VII','III','V'],'label':'Betrayed Heart'}, {'chords':['VI','iv','i','V'],'label':'Desperate Return'},
+            {'chords':['i','V','iv','VI'],'label':'Shattered Vow'}, {'chords':['iv','i','VI','V'],'label':'Please Stay'},
+            {'chords':['i','VI','VII','V'],'label':'Ache Without Closure'}, {'chords':['III','VII','VI','V'],'label':'Everything We Lost'},
+            {'chords':['i','iv','VII','V'],'label':'Final Confession'}, {'chords':['VI','III','iv','V'],'label':'Memory That Hurts'},
+            {'chords':['i','VII','iv','V'],'label':'Empty Arms'}, {'chords':['i','ii°','iv','V'],'label':'Heartbreak Cadence'}
+        ]
+    },
 }
 
 # ── TOUCHING SPANISH PROGRESSIONS — derived from test MIDI analysis ────────────
@@ -1189,7 +1278,7 @@ def generate_counter_melody(root_val, progression, scale_chords, scale_notes, te
             repetition += 1
 
     def _algo_tremolo_swell(bar_start, chord_tones):
-        """Sustained tremolo swell on a single pitch — intense Spanish guitar effect."""
+        """Sustained tremolo swell on a single pitch — intense nylon-string effect."""
         nonlocal cur_idx
         pitch = random.choice(chord_tones)
         if pitch in melody_pitches:
@@ -1434,79 +1523,55 @@ def _choose_trumpet_for_span(candidates, counter_notes, tick, dur_ticks, prev_pi
 
 
 def generate_trumpet_line(root_val, progression, scale_chords, scale_notes, tension, num_bars, tpb, counter_events=None):
-    """
-    Generates a sparse harmonized trumpet line on Channel 3.
-    It favors chord tones and consonant intervals against the guitar counter-line,
-    avoiding unisons/seconds so the brass supports instead of colliding.
-    """
+    """Create a chord-tone brass counterline with breath and clear accents."""
     events = []
     counter_notes = _notes_from_events(counter_events or [], 1)
     prev_pitch = None
     vel_base = int(64 + tension * 20)
 
-    def _emit(tick, pitch, vel, dur_beats):
+    def _emit(tick, pitch, vel, dur_beats, articulation='sustain'):
         if pitch is None:
             return
-        stagger = random.randint(-5, 5)
-        dur = max(40, int(dur_beats * tpb) - 18)
-        events.append((tick + stagger, 'on', max(0, min(127, pitch)), max(24, min(112, vel)), 3))
-        events.append((tick + stagger + dur, 'off', max(0, min(127, pitch)), 0, 3))
+        stagger = random.randint(0, 4)
+        gate = 0.48 if articulation == 'staccato' else 0.93
+        dur = max(38, int(dur_beats * tpb * gate))
+        if articulation == 'accent':
+            vel += 8
+        start = max(0, tick + stagger)
+        events.append((start, 'on', max(0, min(127, pitch)), max(24, min(112, vel)), 3))
+        events.append((start + dur, 'off', max(0, min(127, pitch)), 0, 3))
+
+    # Each four-bar position has a distinct orchestral role. All attacks use
+    # active-chord tones; short figures lead into a sustained harmonic anchor.
+    phrase_templates = [
+        [(0.0, 2.35, 'sustain', 3), (2.75, 0.42, 'staccato', -3), (3.35, 0.45, 'staccato', 1)],
+        [(0.75, 0.42, 'staccato', 5), (1.45, 0.42, 'staccato', -2), (2.15, 1.55, 'sustain', 1)],
+        [(1.75, 1.85, 'sustain', -4), (3.65, 0.28, 'staccato', 2)],
+        [(1.25, 0.38, 'accent', 4), (1.90, 0.38, 'staccato', 0), (2.55, 1.30, 'sustain', 6)],
+    ]
 
     for bar in range(num_bars):
-        if bar % 4 == 2 and random.random() < 0.65:
-            continue
-        if bar % 8 == 5 and random.random() < 0.50:
-            continue
-
         bar_start = bar * 4 * tpb
         chord_name = progression[bar % len(progression)]
         chord_notes = scale_chords[chord_name]
         candidates = _trumpet_pitch_candidates(root_val, chord_notes, scale_notes)
         if not candidates:
             continue
-
-        phrase_shape = random.choice(['answer', 'sustain', 'cadence']) if tension < 0.65 else random.choice(['answer', 'cadence', 'fanfarish'])
-
-        if phrase_shape == 'sustain':
-            beat = random.choice([0.0, 2.0])
+        template = phrase_templates[bar % 4]
+        for note_index, (beat, dur_beats, articulation, vel_adj) in enumerate(template):
             tick = bar_start + int(beat * tpb)
-            dur_beats = random.choice([1.45, 1.85, 2.25])
-            pitch = _choose_trumpet_for_span(candidates, counter_notes, tick, int(dur_beats * tpb), prev_pitch)
-            _emit(tick, pitch, vel_base - 4, dur_beats)
-            prev_pitch = pitch
-
-        elif phrase_shape == 'cadence':
-            beats = [2.0, 3.0] if random.random() < 0.55 else [1.5, 2.5, 3.25]
-            for i, beat in enumerate(beats):
-                tick = bar_start + int(beat * tpb)
-                dur_beats = 0.72 if i < len(beats) - 1 else 0.95
-                pitch = _choose_trumpet_for_span(candidates, counter_notes, tick, int(dur_beats * tpb), prev_pitch)
-                _emit(tick, pitch, vel_base + i * 3, dur_beats)
-                prev_pitch = pitch
-
-        elif phrase_shape == 'fanfarish':
-            rootish = [p for p in candidates if p % 12 == (root_val + chord_notes[0]) % 12]
-            target = min(rootish, key=lambda p: abs(p - (prev_pitch or 70))) if rootish else _choose_trumpet_for_span(candidates, counter_notes, bar_start, int(0.45 * tpb), prev_pitch)
-            for beat, pitch, dur, vel_adj in [
-                (0.0, target, 0.45, 8),
-                (0.75, None, 0.45, 2),
-                (1.5, target, 0.8, 5),
-            ]:
-                tick = bar_start + int(beat * tpb)
-                if pitch is None:
-                    pitch = _choose_trumpet_for_span(candidates, counter_notes, tick, int(dur * tpb), prev_pitch)
-                else:
-                    pitch = _choose_trumpet_for_span(candidates, counter_notes, tick, int(dur * tpb), prev_pitch)
-                _emit(bar_start + int(beat * tpb), pitch, vel_base + vel_adj, dur)
-                prev_pitch = pitch
-
-        else:
-            beats = random.choice([[0.5, 1.5], [1.0, 2.0, 3.0], [2.0, 2.75, 3.5]])
-            for i, beat in enumerate(beats):
-                tick = bar_start + int(beat * tpb)
-                pitch = _choose_trumpet_for_span(candidates, counter_notes, tick, int(0.55 * tpb), prev_pitch)
-                _emit(tick, pitch, vel_base + (4 if i == 0 else -2), 0.55)
-                prev_pitch = pitch
+            pitch = _choose_trumpet_for_span(
+                candidates, counter_notes, tick, int(dur_beats * tpb), prev_pitch
+            )
+            # Counterpoint collision protection can reject every candidate.
+            # In that rare case use the nearest chord tone rather than leaving
+            # the trumpet silent for an entire harmonic moment.
+            if pitch is None:
+                target = (prev_pitch or 70) + random.choice([-3, 0, 2, 3])
+                pitch = _nearest_pitch(candidates, target, prev_pitch)
+            accent = 5 if note_index == 0 and bar in (0, 3) else 0
+            _emit(tick, pitch, vel_base + vel_adj + accent, dur_beats, articulation)
+            prev_pitch = pitch or prev_pitch
 
     return events
 
@@ -1531,11 +1596,7 @@ def _nearest_pitch(candidates, target, prev_pitch=None):
 
 
 def generate_violin_line(root_val, progression, scale_chords, scale_notes, tension, num_bars, tpb):
-    """
-    Generates a lyrical violin layer on Channel 4.
-    The line is intentionally freer than trumpet: still scale/chord-safe, but
-    allowed to weave through sustained arcs and phrase answers.
-    """
+    """Generate a lyrical, chord-led violin motif with varied articulation."""
     events = []
     scale_pool = _scale_pitches_in_range(root_val, scale_notes, 60, 88)
     if not scale_pool:
@@ -1544,68 +1605,49 @@ def generate_violin_line(root_val, progression, scale_chords, scale_notes, tensi
     prev_pitch = scale_pool[len(scale_pool) // 2]
     vel_base = int(58 + tension * 22)
 
-    def _emit(tick, pitch, vel, dur_beats):
+    def _emit(tick, pitch, vel, dur_beats, articulation='sustain'):
         if pitch is None:
             return
-        stagger = random.randint(-6, 6)
-        dur = max(50, int(dur_beats * tpb) - 16)
+        stagger = random.randint(0, 5)
+        gate = 0.42 if articulation == 'staccato' else 0.95
+        dur = max(42, int(dur_beats * tpb * gate))
+        if articulation == 'accent':
+            vel += 9
         pitch = max(0, min(127, pitch))
         vel = max(24, min(110, vel))
-        events.append((tick + stagger, 'on', pitch, vel, 4))
-        events.append((tick + stagger + dur, 'off', pitch, 0, 4))
+        start = max(0, tick + stagger)
+        events.append((start, 'on', pitch, vel, 4))
+        events.append((start + dur, 'off', pitch, 0, 4))
+
+    templates = [
+        [(0.0, 1.85, 'sustain', 4), (2.15, 0.40, 'staccato', -3), (2.85, 0.40, 'staccato', 1), (3.40, 0.48, 'accent', 5)],
+        [(0.45, 0.42, 'staccato', 2), (1.10, 0.42, 'staccato', -3), (1.80, 1.95, 'sustain', 3)],
+        [(0.0, 2.45, 'sustain', -2), (2.70, 0.36, 'staccato', 2), (3.25, 0.60, 'sustain', 0)],
+        [(0.25, 0.34, 'accent', 5), (0.80, 0.34, 'staccato', -2), (1.35, 0.42, 'staccato', 1), (2.05, 1.82, 'sustain', 6)],
+    ]
 
     for bar in range(num_bars):
-        if bar % 8 == 2 and random.random() < 0.55:
-            continue
-        if bar % 8 == 6 and random.random() < 0.40:
-            continue
-
         bar_start = bar * 4 * tpb
         chord_name = progression[bar % len(progression)]
         chord_notes = scale_chords[chord_name]
         chord_candidates = _violin_pitch_candidates(root_val, chord_notes, scale_notes)
-        phrase = random.choice(['sustain', 'answer', 'arc', 'turn'])
-
-        if phrase == 'sustain':
-            target = _nearest_pitch(chord_candidates, prev_pitch + random.choice([-3, 0, 3]), prev_pitch)
-            beat = random.choice([0.0, 1.0, 2.0])
-            dur = random.choice([1.65, 2.0, 2.6, 3.2])
-            _emit(bar_start + int(beat * tpb), target, vel_base + random.randint(-5, 5), dur)
+        if not chord_candidates:
+            continue
+        template = templates[bar % 4]
+        contour = 1 if bar in (0, 2) else -1
+        for note_index, (beat, dur_beats, articulation, vel_adj) in enumerate(template):
+            # Core notes are always active chord tones. The target moves by a
+            # small contour interval, preserving a recognizable four-bar motif
+            # while voice-leading smoothly through the progression.
+            leap = contour * random.choice([1, 2, 3])
+            if articulation == 'sustain':
+                leap = contour * random.choice([0, 2, 3, 4])
+            target = _nearest_pitch(chord_candidates, prev_pitch + leap, prev_pitch)
+            if note_index == len(template) - 1:
+                # Phrase endings settle firmly into the current harmony.
+                target = _nearest_pitch(chord_candidates, prev_pitch, prev_pitch)
+            _emit(bar_start + int(beat * tpb), target, vel_base + vel_adj, dur_beats, articulation)
             prev_pitch = target or prev_pitch
-
-        elif phrase == 'answer':
-            beats = random.choice([[0.5, 1.5, 2.5], [1.0, 2.0, 3.0], [2.0, 2.75, 3.5]])
-            for i, beat in enumerate(beats):
-                target_pool = chord_candidates if i == len(beats) - 1 else scale_pool
-                direction = random.choice([-2, -1, 1, 2])
-                target = _nearest_pitch(target_pool, prev_pitch + direction, prev_pitch)
-                _emit(bar_start + int(beat * tpb), target, vel_base + (4 if i == 0 else -2), 0.62)
-                prev_pitch = target or prev_pitch
-
-        elif phrase == 'arc':
-            start = _nearest_pitch(chord_candidates, prev_pitch, prev_pitch) or prev_pitch
-            peak = _nearest_pitch(scale_pool, start + random.choice([3, 4, 5, 7]), start) or start
-            end = _nearest_pitch(chord_candidates, start - random.choice([0, 2, 3]), peak) or start
-            for beat, pitch, dur, vel_adj in [
-                (0.0, start, 0.85, -2),
-                (1.25, peak, 0.85, 6),
-                (2.5, end, 1.25, 0),
-            ]:
-                _emit(bar_start + int(beat * tpb), pitch, vel_base + vel_adj, dur)
-            prev_pitch = end
-
-        else:
-            chord_target = _nearest_pitch(chord_candidates, prev_pitch, prev_pitch) or prev_pitch
-            neighbor = _nearest_pitch(scale_pool, chord_target + random.choice([-2, -1, 1, 2]), chord_target) or chord_target
-            return_note = _nearest_pitch(chord_candidates, chord_target, neighbor) or chord_target
-            for beat, pitch, dur, vel_adj in [
-                (0.0, chord_target, 0.72, 2),
-                (0.85, neighbor, 0.38, -5),
-                (1.25, return_note, 1.1, 0),
-                (3.0, _nearest_pitch(chord_candidates, return_note + random.choice([-2, 2]), return_note), 0.72, -2),
-            ]:
-                _emit(bar_start + int(beat * tpb), pitch, vel_base + vel_adj, dur)
-                prev_pitch = pitch or prev_pitch
 
     return events
 
@@ -1725,10 +1767,14 @@ def build_midi_from_tracks_events(tracks_events, tpb=480, loop_end_tick=None):
     return mid
 
 
-def compose_spanish_family(out_dir, mood, key_name, root_val, bpm, num_bars=8):
+def compose_spanish_family(out_dir, mood, key_name, root_val, bpm, num_bars=4):
     """
     Core composer entry point. Creates tracks, generates performance, and saves file.
     """
+    # Spanish Family compositions are deliberately fixed four-bar emotional
+    # statements. Clamp direct callers and legacy CLI requests here so every
+    # interface produces the same form.
+    num_bars = 4
     tpb = 480
     scale_name = mood['scale']
     tension = mood['tension']
@@ -1739,7 +1785,20 @@ def compose_spanish_family(out_dir, mood, key_name, root_val, bpm, num_bars=8):
     scale_chords = SCALE_CHORDS[scale_name]
     
     # 1. Generate Chord Progression (or use the one in the selected mood)
-    if 'progression' in mood:
+    if mood.get('progressions'):
+        # Curated mood pools contain four-bar emotional arcs. Longer pieces
+        # select a new, non-identical arc for each four-bar section so an
+        # eight-bar composition develops instead of merely repeating bar 1-4.
+        pool = mood['progressions']
+        progression = []
+        previous_entry = None
+        while len(progression) < num_bars:
+            candidates = [entry for entry in pool if entry is not previous_entry]
+            entry = random.choice(candidates or pool)
+            progression.extend(entry['chords'])
+            previous_entry = entry
+        progression = progression[:num_bars]
+    elif 'progression' in mood:
         raw_prog = mood['progression']
         progression = [raw_prog[i % len(raw_prog)] for i in range(num_bars)]
     else:
@@ -1797,37 +1856,62 @@ def _div(c='-', w=62):
 
 
 def _select_mood_cli():
+    """Select from the same six curated moods exposed by the native app."""
+    print("\n  Select Spanish Family Mood (4 bars):")
+    print("  ____________________________________________________________")
+    for key, mood in sorted(NATIVE_MOODS.items(), key=lambda item: int(item[0])):
+        scale_disp = mood['scale'].replace('_', ' ').title()
+        count = len(mood.get('progressions', []))
+        print(f"    {key}  ->  {mood['name']}  [{scale_disp} - {count} progressions]")
+    print("  ____________________________________________________________")
+    while True:
+        choice = input("  --> ").strip()
+        if choice in NATIVE_MOODS:
+            selected = NATIVE_MOODS[choice].copy()
+            selected['style_label'] = 'Curated_Minor_Mood'
+            print(f"  [{selected['name']}] selected.")
+            return selected
+        print(f"  Enter one of: {', '.join(sorted(NATIVE_MOODS.keys()))}")
+
+    # Legacy selection code below is intentionally unreachable and retained
+    # temporarily for progression-migration reference.
     print("""
   Select Mood Source:
   ____________________________________________________________
-    1  →  Native Spanish Presets (Classic 8 moods)
-    2  →  Touching Spanish (modeled on reference recordings)
-    3  →  Minor Engine Moods (Adapted to Spanish Scales)
-    4  →  Major Engine Moods (Adapted to Spanish Scales)
+    1  →  Curated Spanish Minor Moods (6 moods · 120 progressions)
+    2  →  Legacy Minor Engine Moods (Adapted to Spanish Scales)
+    3  →  Legacy Major Engine Moods (Adapted to Spanish Scales)
   ____________________________________________________________""")
     while True:
         mode_choice = input("  --> ").strip()
-        if mode_choice in ('1', '2', '3', '4'):
+        if mode_choice in ('1', '2', '3'):
             break
-        print("  Enter 1, 2, 3, or 4.")
+        print("  Enter 1, 2, or 3.")
+
+    # Keep the established implementation branches below while presenting a
+    # clean three-option menu now that the old Touching presets are absorbed
+    # into the six curated native moods.
+    if mode_choice == '2':
+        mode_choice = '3'
+    elif mode_choice == '3':
+        mode_choice = '4'
 
     if mode_choice == '1':
-        # Original 8 native presets
-        print("\n  Select a Native Spanish Preset:")
+        print("\n  Select a Curated Spanish Minor Mood:")
         print("  ____________________________________________________________")
-        native_8 = {k: v for k, v in NATIVE_MOODS.items() if k in [str(i) for i in range(1, 9)]}
-        for k, m in sorted(native_8.items()):
+        curated = dict(NATIVE_MOODS)
+        for k, m in sorted(curated.items()):
             scale_disp = m['scale'].replace('_', ' ').title()
             print(f"    {k}  →  {m['name']:<22} {m['desc']:<36} [{scale_disp}]")
         print("  ____________________________________________________________")
         while True:
             choice = input("  --> ").strip()
-            if choice in native_8:
-                m = native_8[choice].copy()
-                m['style_label'] = 'Native_Preset'
+            if choice in curated:
+                m = curated[choice].copy()
+                m['style_label'] = 'Curated_Minor_Mood'
                 print(f"  [{m['name']}] selected.")
                 return m
-            print(f"  Enter one of: {', '.join(sorted(native_8.keys()))}")
+            print(f"  Enter one of: {', '.join(sorted(curated.keys()))}")
 
     elif mode_choice == '2':
         # Touching Spanish — modeled on test MIDI emotional profiles
@@ -1967,18 +2051,8 @@ def _select_tempo_cli(lo, hi):
 
 
 def _select_length_cli():
-    print("""
-  Select Composition Length:
-    1  →  8 Bars (Loop/Phrase)
-    2  →  16 Bars (Double Period Theme)
-    --> """)
-    while True:
-        choice = input("  --> ").strip()
-        if choice == '1':
-            return 8
-        elif choice == '2':
-            return 16
-        print("  Enter 1 or 2.")
+    print("\n  Composition Length: 4 Bars (fixed)")
+    return 4
 
 
 

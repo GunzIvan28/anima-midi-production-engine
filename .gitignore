@@ -1,0 +1,40 @@
+# Python virtual environments
+.venv/
+anima_native_workstation/.venv/
+venv/
+env/
+
+# Python caches and tooling
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Native application build products
+anima_native_workstation/build/
+anima_native_workstation/dist/
+*.spec.bak
+
+# Generated MIDI compositions (retain the directory via .gitkeep)
+midi_files/*
+!midi_files/.gitkeep
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*.swp
+~$*
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
