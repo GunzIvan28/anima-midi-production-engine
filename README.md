@@ -41,21 +41,6 @@ anima_native_workstation/dist/ANIMA-MIDI-Production-Engine-v1.1/
 
 The `dist/` directory is intentionally ignored by Git. Zip the versioned distribution and attach it to the matching GitHub Release instead of committing binaries to the source repository.
 
-## Publishing the source repository
-
-The repository is initialized locally, but commits and remotes remain under the maintainer's control:
-
-```powershell
-git status
-git add .
-git commit -m "Release v1.1"
-git branch -M main
-git remote add origin <your-github-repository-url>
-git push -u origin main
-```
-
-Create a GitHub release tagged `v1.1` and upload a ZIP of `anima_native_workstation/dist/ANIMA-MIDI-Production-Engine-v1.1/` as its downloadable Windows application.
-
 ## Release workflow
 
 Major feature releases use sequential suffixes: `v1.1`, `v1.2`, `v1.3`, and so on.
