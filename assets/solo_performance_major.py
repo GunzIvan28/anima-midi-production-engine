@@ -16,7 +16,7 @@ def _load(name, filename):
 # Load the proven performance rules into a private module namespace. Changing
 # these globals cannot alter the separately loaded minor Solo Performance.
 _core = _load("major_solo_private_core", "solo_performance_minor.py")
-_major = _load("major_solo_harmony_source", "major-chord-generatory.py")
+_major = _load("major_solo_harmony_source", "chord_generatory_major.py")
 
 SCALE_NAME = "Natural Major"
 MAJOR_CHORDS = {

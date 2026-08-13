@@ -50,10 +50,10 @@ def _load_module(module_name, filename):
 
 try:
     print("  [LOADING] Initializing Minor Scale Engine...")
-    minor_engine = _load_module('minor_chord_generatory', 'minor-chord-generatory.py')
+    minor_engine = _load_module('minor_chord_generatory', 'chord_generatory_minor.py')
 
     print("  [LOADING] Initializing Major Scale Engine...")
-    major_engine = _load_module('major_chord_generatory', 'major-chord-generatory.py')
+    major_engine = _load_module('major_chord_generatory', 'chord_generatory_major.py')
 
     print("  [LOADING] Initializing VVC Orchestration Engine...")
     vvc_engine = _load_module('VVC', 'VVC.py')
@@ -72,6 +72,9 @@ try:
 
     print("  [LOADING] Initializing Cinematic Engine...")
     cinematic_engine = _load_module('cinematic', 'cinematic.py')
+
+    print("  [LOADING] Initializing Super Composer Engine...")
+    sc_engine = _load_module('super_composer', 'super-composer.py')
 
     print("  [SUCCESS] All ANIMA sub-engines loaded successfully.\n")
 except Exception as e:
@@ -245,6 +248,7 @@ WORK WITH EXISTING MIDI
   2 -> Expand 4-Bar MIDI to 120-Bar Arrangement
   3 -> Add Choir to Existing MIDI
   4 -> Analyze MIDI Key / Tempo
+  5 -> Super Composer (Orchestrate Existing MIDI)
   B -> Back
 """)
         _div()
@@ -253,8 +257,8 @@ WORK WITH EXISTING MIDI
 
         if choice == 'b':
             return
-        if choice not in ('1', '2', '3', '4'):
-            print("  [!] Invalid choice. Enter 1-4 or B.\n")
+        if choice not in ('1', '2', '3', '4', '5'):
+            print("  [!] Invalid choice. Enter 1-5 or B.\n")
             continue
 
         filepath = _prompt_midi_path()
@@ -278,6 +282,14 @@ WORK WITH EXISTING MIDI
                     print(f"\n  Key      : {root_name} {scale_name}")
                     print(f"  Tonality : {'Minor' if is_minor else 'Major'}")
                     print(f"  BPM      : {bpm}\n")
+            elif choice == '5':
+                print("\n  Select Orchestration Intensity / Tension:")
+                print("    1 -> Low (Tension 0.40) - Soft, reflective")
+                print("    2 -> Medium (Tension 0.65) - Expressive, balanced")
+                print("    3 -> High (Tension 0.85) - Dramatic, energetic")
+                tc = input("  Choice (1-3, default 2): ").strip() or '2'
+                tension = {'1': 0.40, '2': 0.65, '3': 0.85}.get(tc, 0.65)
+                sc_engine.super_compose_over_midi(filepath, out_dir, tension)
         except Exception as e:
             print(f"  [ERROR] Existing-MIDI task failed: {e}")
 
@@ -347,6 +359,7 @@ GUITAR & SPECIALIST STYLES
   2 -> World Composer
   3 -> Solo Performance (Minor)
   4 -> Solo Performance (Major)
+  5 -> Super Composer (Orchestrate Existing MIDI)
   B -> Back
 """)
         _div()
@@ -375,8 +388,13 @@ GUITAR & SPECIALIST STYLES
                 major_solo_engine.main(out_dir)
             except Exception as e:
                 print(f"  [ERROR] Major Solo Performance Engine failure: {e}")
+        elif choice == '5':
+            try:
+                sc_engine.main(out_dir)
+            except Exception as e:
+                print(f"  [ERROR] Super Composer Engine failure: {e}")
         else:
-            print("  [!] Invalid choice. Enter 1, 2, 3, 4 or B.\n")
+            print("  [!] Invalid choice. Enter 1-5 or B.\n")
 
 
 def _run_help_menu():

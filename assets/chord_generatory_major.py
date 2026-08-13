@@ -5,7 +5,16 @@ Features:
   2. Load an existing MIDI file and generate melodies on top of it
 """
 
-import mido, os, random, time, math
+import mido, os, random, time, math, importlib.util
+
+def _load(name, filename):
+    path = os.path.join(os.path.dirname(__file__), filename)
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+_solo = _load("solo_perf_minor_private", "solo_performance_minor.py")
 
 GENERATION_MODE = 'simple'
 DEFAULT_BPM = 120
@@ -116,6 +125,7 @@ moods = {
         {'chords': ['I', 'bVI', 'IV', 'I'],      'label': 'Solitary Path'},
     ]},
 }
+
 
 # ── RHYTHM MATRICES ──────────────────────────────────────────────────────────
 RHYTHM_LYRICAL = [
@@ -322,334 +332,71 @@ def generate_chords(root_note, progression):
             chords.append(voicing)
     return chords
 
-def generate_melody(root_note, progression, tension=0.5):
-    bars_data = []
-    for bar_item in progression:
-        if isinstance(bar_item, list):
-            bar_data = []
-            for num, dur in bar_item:
-                ct_raw, scale = roman_numerals[num]
-                bar_data.append(([t % 12 for t in ct_raw], [t % 12 for t in scale], dur))
-            bars_data.append(bar_data)
-        else:
-            ct_raw, scale = roman_numerals[bar_item]
-            bars_data.append(([t % 12 for t in ct_raw], [t % 12 for t in scale]))
-    return _generate_melody_core(root_note, bars_data, tension)
-
-LEAD_COUNTER_RANGE = (58, 76)
-LEAD_COUNTER_CENTER = 67
-
-
-def _violin_pitch_in_shared_octave(root_note, offset):
-    """Place a scale offset in a warm shared violin register."""
-    pc = (root_note + offset) % 12
-    lo, hi = LEAD_COUNTER_RANGE
-    candidates = [pitch for pitch in range(lo, hi + 1) if pitch % 12 == pc]
-    return min(candidates, key=lambda pitch: (abs(pitch - LEAD_COUNTER_CENTER), pitch))
-
-def _sounding_note_at_beat(events, target_beat):
-    """Return the lead note sounding at an absolute beat position."""
-    elapsed = 0.0
-    for note, duration in events or []:
-        if elapsed <= target_beat < elapsed + duration - 1e-9:
-            return note
-        elapsed += duration
-    return None
-
-def _choose_counter_pitch(root_note, chord_tones, scale, lead_pitch, previous_pitch,
-                          lead_direction=0, strong=False):
-    """Voice-lead a consonant counter note inside the lead violin's octave."""
-    source = chord_tones if strong else list(dict.fromkeys(chord_tones + scale))
-    candidates = [_violin_pitch_in_shared_octave(root_note, tone) for tone in source]
-    consonances = {3, 4, 5, 7, 8, 9}
-
-    def score(pitch):
-        value = 7.0 if (pitch - root_note) % 12 in {t % 12 for t in chord_tones} else 0.0
-        value -= abs(pitch - previous_pitch) * 0.8
-        if lead_pitch is not None:
-            interval = abs(pitch - lead_pitch)
-            value += 13.0 if interval in consonances else -18.0
-            if interval == 0:
-                value -= 25.0
-            # Prefer the counter below the lead, but permit graceful crossings.
-            value += 2.5 if pitch < lead_pitch else -1.0
-        motion = pitch - previous_pitch
-        if lead_direction > 0 and motion < 0:
-            value += 3.0
-        elif lead_direction < 0 and motion > 0:
-            value += 3.0
-        elif lead_direction and motion * lead_direction > 0:
-            value -= 2.0
-        return value + random.random() * 0.75
-
-    return max(candidates, key=score)
-
-def _generate_melody_core(root_note, bars_data, tension=0.5):
-    """Lyrical top melody generator tuned for major environments."""
-    melody = []
-    cur = 0
-    lead_active, _ = _activity_map(tension, len(bars_data))
-    motif_rhythm = None
-    
-    for bar_idx, bar_harmony in enumerate(bars_data):
-        if isinstance(bar_harmony, list):
-            first_scale = bar_harmony[0][1]
-        else:
-            first_scale = bar_harmony[1]
-            
-        matrix = get_markov_matrix(first_scale)
-        
-        if not lead_active[bar_idx]:
-            if random.random() < 0.4:
-                ct, sc = get_bar_harmony_at_beat(bar_harmony, 0.0)
-                pitch = _violin_pitch_in_shared_octave(root_note, random.choice(ct))
-                melody.append((pitch, 4.0))
-            else:
-                melody.append((None, 4.0))
-            continue
-            
-        bar_rhythm = []
-        if motif_rhythm is None or tension > 0.65:
-            beats_left = 4.0
-            while beats_left > 0.01:
-                dur = w_rhythm(RHYTHM_LYRICAL, beats_left, tension * 0.7)
-                bar_rhythm.append(dur)
-                beats_left -= dur
-            if motif_rhythm is None:
-                motif_rhythm = bar_rhythm
-        else:
-            bar_rhythm = motif_rhythm
-            
-        beat_pos = 0.0
-        for dur in bar_rhythm:
-            ct, sc = get_bar_harmony_at_beat(bar_harmony, beat_pos)
-            matrix = get_markov_matrix(sc)
-            
-            strong = (beat_pos % 2.0 < 0.01)
-            if strong or random.random() < 0.75:
-                off = random.choice(ct)
-            else:
-                off = pick_markov_next(cur, sc, matrix)
-                
-            pitch = _violin_pitch_in_shared_octave(root_note, off)
-                
-            melody.append((pitch, dur))
-            cur = off
-            beat_pos += dur
-            
-    return melody
-
-def generate_counter(root_note, progression, tension=0.5, lead_melody=None):
-    bars_data = []
-    for bar_item in progression:
-        if isinstance(bar_item, list):
-            bar_data = []
-            for num, dur in bar_item:
-                ct_raw, scale = roman_numerals[num]
-                bar_data.append(([t % 12 for t in ct_raw], [t % 12 for t in scale], dur))
-            bars_data.append(bar_data)
-        else:
-            ct_raw, scale = roman_numerals[bar_item]
-            bars_data.append(([t % 12 for t in ct_raw], [t % 12 for t in scale]))
-    return _generate_counter_core(root_note, bars_data, tension, lead_melody)
-
-def _generate_counter_core(root_note, bars_data, tension=0.5, lead_melody=None):
-    """Sustained counterpoint in the same octave as the lead violin."""
-    counter = []
-    previous_pitch = _violin_pitch_in_shared_octave(root_note, 4)
-    _, counter_active = _activity_map(tension, len(bars_data))
-    lead_dirs = _lead_bar_directions(lead_melody, len(bars_data)) if lead_melody else [0]*len(bars_data)
-    
-    for bar_idx, bar_harmony in enumerate(bars_data):
-        if isinstance(bar_harmony, list):
-            first_scale = bar_harmony[0][1]
-        else:
-            first_scale = bar_harmony[1]
-            
-        if not counter_active[bar_idx]:
-            if random.random() < 0.3:
-                ct, sc = get_bar_harmony_at_beat(bar_harmony, 0.0)
-                lead_pitch = _sounding_note_at_beat(lead_melody, bar_idx * 4.0)
-                pitch = _choose_counter_pitch(
-                    root_note, ct, sc, lead_pitch, previous_pitch,
-                    lead_dirs[bar_idx], strong=True
-                )
-                counter.append((pitch, 4.0))
-                previous_pitch = pitch
-            else:
-                counter.append((None, 4.0))
-            continue
-            
-        beats_left = 4.0
-        beat_pos = 0.0
-        while beats_left > 0.01:
-            dur = w_rhythm(RHYTHM_SUSTAIN, beats_left, tension * 0.4)
-            ct, sc = get_bar_harmony_at_beat(bar_harmony, beat_pos)
-            absolute_beat = bar_idx * 4.0 + beat_pos
-            lead_pitch = _sounding_note_at_beat(lead_melody, absolute_beat)
-            pitch = _choose_counter_pitch(
-                root_note, ct, sc, lead_pitch, previous_pitch,
-                lead_dirs[bar_idx], strong=(beat_pos % 2.0 < 0.01)
-            )
-            counter.append((pitch, dur))
-            previous_pitch = pitch
-            beats_left -= dur
-            beat_pos += dur
-    return counter
-
-def generate_driving_arpeggio(root_note, progression, tension=0.5):
-    """Create a harmonically locked, phrase-shaped arpeggio ostinato.
-
-    Strong subdivisions always use chord tones. Weak subdivisions may use a
-    neighboring scale tone as an approach, then resolve immediately back into
-    the active chord. Nearest-note voice leading and a rise/fall phrase contour
-    keep the part emotional and melodic without competing with the lead.
-    """
-    bars_data = []
-    for bar_item in progression:
-        if isinstance(bar_item, list):
-            bar_data = []
-            for num, dur in bar_item:
-                ct_raw, scale = roman_numerals[num]
-                bar_data.append(([t % 12 for t in ct_raw], [t % 12 for t in scale], dur))
-            bars_data.append(bar_data)
-        else:
-            ct_raw, scale = roman_numerals[bar_item]
-            bars_data.append(([t % 12 for t in ct_raw], [t % 12 for t in scale]))
-
-    step = 0.25 if tension >= 0.72 else 0.5
-    steps_per_bar = int(round(4.0 / step))
-    patterns = (
-        [0, 1, 2, 1, 0, 2, 1, 2],
-        [0, 2, 1, 2, 0, 1, 2, 1],
-        [0, 1, 2, 3, 2, 1, 0, 2],
-        [2, 1, 0, 1, 2, 1, 0, 1],
-    )
-    arp = []
-    previous_pitch = root_note + 24
-
-    def place_near(pc, target):
-        candidates = [p for p in range(root_note + 22, root_note + 39) if p % 12 == (root_note + pc) % 12]
-        return min(candidates, key=lambda p: abs(p - target))
-
-    for bar_idx, bar_harmony in enumerate(bars_data):
-        phrase_phase = bar_idx % 4
-        pattern = patterns[phrase_phase]
-        for step_idx in range(steps_per_bar):
-            beat_pos = step_idx * step
-            chord_tones, scale = get_bar_harmony_at_beat(bar_harmony, beat_pos)
-            chord_tones = list(dict.fromkeys(chord_tones))
-            pattern_pos = int(step_idx * 8 / steps_per_bar) % len(pattern)
-            chord_index = pattern[pattern_pos] % len(chord_tones)
-            offset = chord_tones[chord_index]
-
-            # A restrained non-chord approach on weak eighth-note positions.
-            weak_pulse = (step_idx % max(1, int(round(1.0 / step)))) != 0
-            if weak_pulse and random.random() < 0.16 + tension * 0.16:
-                scale_sorted = sorted(set(scale))
-                chord_pc = offset % 12
-                scale_index = min(range(len(scale_sorted)),
-                                  key=lambda i: abs(scale_sorted[i] - chord_pc))
-                direction = 1 if phrase_phase in (0, 2) else -1
-                offset = scale_sorted[(scale_index + direction) % len(scale_sorted)]
-
-            contour = (step_idx / max(1, steps_per_bar - 1))
-            contour_shift = int(round((contour if phrase_phase in (0, 2) else 1.0 - contour) * 5))
-            target = previous_pitch + max(-4, min(4, contour_shift - 2))
-            pitch = place_near(offset, target)
-
-            # Bar three is the emotional lift; bar four settles the phrase.
-            if phrase_phase == 2 and step_idx >= steps_per_bar // 2 and pitch + 12 <= root_note + 40:
-                pitch += 12
-            elif phrase_phase == 3 and step_idx >= steps_per_bar - 2:
-                root_pc = chord_tones[0]
-                pitch = place_near(root_pc, root_note + 24)
-
-            arp.append((pitch, step))
-            previous_pitch = pitch
-
-    return arp
-
-# ── MIDI FILE ANALYSIS (Feature 2) ──────────────────────────────────────────
-
-def build_midi(chords, melody, counter, base_tpb=480, bpm=DEFAULT_BPM, arpeggio=None):
-    mid = mido.MidiFile()
-    mid.ticks_per_beat = base_tpb
+def build_midi(chords, root_val, progression, bpm=DEFAULT_BPM, base_tpb=480):
     tpb = base_tpb
-    chord_dur = tpb * 4
+    SCALE_NAME = "chord_engine_major"
+    MAJOR_CHORDS = {}
+    for sym, (offsets, _) in roman_numerals.items():
+        MAJOR_CHORDS[sym] = [o % 12 for o in offsets]
+    _solo.MINOR_SCALES[SCALE_NAME] = list(SCALE_IONIAN)
+    _solo.SCALE_CHORDS[SCALE_NAME] = MAJOR_CHORDS
 
-    tr_meta = mido.MidiTrack(); mid.tracks.append(tr_meta)
-    tr_ch = mido.MidiTrack(); mid.tracks.append(tr_ch)
-    tr_mel = mido.MidiTrack(); mid.tracks.append(tr_mel)
-    tr_cnt = mido.MidiTrack(); mid.tracks.append(tr_cnt)
-    tr_arp = mido.MidiTrack(); mid.tracks.append(tr_arp)
+    def _major_bars_data(prog, _scale_name):
+        return [
+            ([t % 12 for t in roman_numerals[symbol][0]], [t % 12 for t in roman_numerals[symbol][1]])
+            for symbol in prog
+        ]
+    _solo._solo_bars_data = _major_bars_data
 
-    tr_meta.name = "Tempo & Meta"
-    tr_ch.name = "Chord Pad"
-    tr_mel.name = "Violin I - Lead Melody"
-    tr_cnt.name = "Violin II - Counter Melody"
-    tr_arp.name = "Driving Arpeggio Melody"
+    harmonic_plan = _solo._build_harmonic_plan(root_val, progression, SCALE_NAME)
+    hook_lead = _solo._generate_main_hook_lead(root_val, harmonic_plan, SCALE_NAME, tpb)
 
-    tr_meta.append(mido.MetaMessage('set_tempo', tempo=mido.bpm2tempo(bpm), time=0))
-    tr_meta.append(mido.MetaMessage('time_signature', numerator=4, denominator=4, time=0))
-    tr_ch.append(mido.Message('program_change', program=89, channel=0, time=0))
-    tr_mel.append(mido.Message('program_change', program=40, channel=1, time=0))
-    tr_cnt.append(mido.Message('program_change', program=40, channel=2, time=0))
-    tr_arp.append(mido.Message('program_change', program=81, channel=3, time=0))
-
-    if chords:
-        for bar_item in chords:
-            if isinstance(bar_item, list) and bar_item and isinstance(bar_item[0], (list, tuple)):
-                # Subdivided bar: list of (voicing, duration) tuples
-                cum_time = 0
-                for voicing, dur in bar_item:
-                    c_dur = int(dur * tpb)
-                    for n in voicing:
-                        tr_ch.append(mido.Message('note_on', note=n, velocity=68, channel=0, time=cum_time))
-                    for i, n in enumerate(voicing):
-                        tr_ch.append(mido.Message('note_off', note=n, velocity=68, channel=0,
-                                                  time=c_dur if i == 0 else 0))
-                    cum_time = 0
-            else:
-                # Simple whole-bar voicing: list of ints
-                for n in bar_item:
-                    tr_ch.append(mido.Message('note_on', note=n, velocity=68, channel=0, time=0))
-                for i, n in enumerate(bar_item):
-                    tr_ch.append(mido.Message('note_off', note=n, velocity=68, channel=0,
-                                              time=chord_dur if i == 0 else 0))
-
-    # Lead melody: accented velocity (90), rests advance time
-    rest_accum = 0
-    for nv, db in melody:
-        dt = max(1, int(db * tpb))
-        if nv is None:
-            rest_accum += dt
+    pad_events = [(0, "program", 48, 0, 0)]
+    current_tick = 0
+    for bar_item in chords:
+        if isinstance(bar_item, list) and bar_item and isinstance(bar_item[0], (list, tuple)):
+            for voicing, dur in bar_item:
+                dur_ticks = int(dur * tpb)
+                for n in voicing:
+                    pad_events.append((current_tick, "on", n, 68, 0))
+                for n in voicing:
+                    pad_events.append((current_tick + dur_ticks, "off", n, 68, 0))
+                current_tick += dur_ticks
         else:
-            tr_mel.append(mido.Message('note_on',  note=nv, velocity=90, channel=1, time=rest_accum))
-            tr_mel.append(mido.Message('note_off', note=nv, velocity=90, channel=1, time=dt))
-            rest_accum = 0
+            dur_ticks = 4 * tpb
+            for n in bar_item:
+                pad_events.append((current_tick, "on", n, 68, 0))
+            for n in bar_item:
+                pad_events.append((current_tick + dur_ticks, "off", n, 68, 0))
+            current_tick += dur_ticks
 
-    # Counter-melody: soft supportive velocity (62), rests advance time
-    rest_accum = 0
-    for nv, db in counter:
-        dt = max(1, int(db * tpb))
-        if nv is None:
-            rest_accum += dt
-        else:
-            tr_cnt.append(mido.Message('note_on',  note=nv, velocity=62, channel=2, time=rest_accum))
-            tr_cnt.append(mido.Message('note_off', note=nv, velocity=62, channel=2, time=dt))
-            rest_accum = 0
+    rhythmic = _solo._generate_rhythmic_layer(harmonic_plan, tpb, bpm)
+    staccato = _solo._generate_staccato(root_val, progression, SCALE_NAME, tpb, bpm, _solo.INSTRUMENTS["1"])
+    sub_bass = _solo._generate_sub_bass(root_val, progression, SCALE_NAME, tpb, bpm)
+    cry_lead, cry_counter, _, _ = _solo._generate_crying_violin_parts(root_val, progression, SCALE_NAME, tpb)
 
-    if arpeggio:
-        for note_index, (nv, db) in enumerate(arpeggio):
-            dt = max(1, int(db * tpb))
-            accent = note_index % max(1, int(round(1.0 / db))) == 0
-            velocity = (82 if accent else 68) + random.randint(-4, 4)
-            gate = max(1, int(dt * 0.82))
-            tr_arp.append(mido.Message('note_on', note=nv, velocity=velocity, channel=3, time=0))
-            tr_arp.append(mido.Message('note_off', note=nv, velocity=velocity, channel=3, time=gate))
-            tr_arp.append(mido.Message('note_off', note=nv, velocity=0, channel=3, time=dt - gate))
+    tracks = [
+        hook_lead,
+        pad_events,
+        rhythmic,
+        staccato,
+        sub_bass,
+        cry_lead,
+        cry_counter,
+    ]
 
+    names = [
+        "Main Hook Lead - Opening Theme",
+        "Chord Pad - Four Bar Major String Bed",
+        "Rhythmic Layer - Continuous Chord Pulse",
+        "Staccato Phrases - Solo Performance",
+        "Sub-Bass - Progression Root Support",
+        "Crying Violin Lead Melody",
+        "Crying Violin Counter",
+    ]
+
+    loop_end = 4 * 4 * tpb
+    mid = _solo._events_to_mid(tracks, names, bpm, tpb, loop_end)
     return mid
 
 def _detect_scale(prog):
@@ -800,11 +547,14 @@ def _run_quick_cluster(cluster_key, out_dir):
         _div('=')
         print("  Generating 4-Bar Loop...")
         chords  = generate_chords(root_val, full_prog)
-        melody  = generate_melody(root_val, full_prog, tension)
-        counter = generate_counter(root_val, full_prog, tension, lead_melody=melody)
-        arpeggio = generate_driving_arpeggio(root_val, full_prog, tension)
+        flat_prog = []
+        for bar_item in full_prog:
+            if isinstance(bar_item, list):
+                flat_prog.append(bar_item[0][0])
+            else:
+                flat_prog.append(bar_item)
         bpm     = _tempo_for_tension(tension)
-        mid     = build_midi(chords, melody, counter, bpm=bpm, arpeggio=arpeggio)
+        mid     = build_midi(chords, root_val, flat_prog, bpm=bpm)
         _save_midi(mid, _cinematic_fname(names, entry['label'], root_name, "Major", bpm, prog_display), out_dir)
         again = _again_or_back()
 
@@ -878,11 +628,14 @@ def _run_blend(out_dir, surprise=False):
         _div('=')
         print("  Generating 4-Bar Loop...")
         chords  = generate_chords(root_val, full_prog)
-        melody  = generate_melody(root_val, full_prog, tension)
-        counter = generate_counter(root_val, full_prog, tension, lead_melody=melody)
-        arpeggio = generate_driving_arpeggio(root_val, full_prog, tension)
+        flat_prog = []
+        for bar_item in full_prog:
+            if isinstance(bar_item, list):
+                flat_prog.append(bar_item[0][0])
+            else:
+                flat_prog.append(bar_item)
         bpm = _tempo_for_tension(tension)
-        mid = build_midi(chords, melody, counter, bpm=bpm, arpeggio=arpeggio)
+        mid = build_midi(chords, root_val, flat_prog, bpm=bpm)
         _save_midi(mid, _cinematic_fname(f"Blend {tag}", entry['label'], root_name, "Major", bpm, prog_display), out_dir)
         again = _again_or_back()
 

@@ -175,14 +175,22 @@ PROGRESSIONS.extend(PAIN_HEARTBREAK_PROGRESSIONS)
 
 
 def _adopt_minor_engine_progressions():
-    minor_path = os.path.join(os.path.dirname(__file__), "minor-chord-generatory.py")
+    import sys as _sys
+    minor_path = os.path.join(os.path.dirname(__file__), "chord_generatory_minor.py")
     if not os.path.exists(minor_path):
+        return
+    # Pre-register before exec to block any re-entrant call during the load itself.
+    # We do NOT check for "minor_chord_generatory" here — that would incorrectly
+    # block callers like cinematic.py who load us independently.
+    if "solo_minor_engine_reference" in _sys.modules:
         return
     try:
         spec = importlib.util.spec_from_file_location("solo_minor_engine_reference", minor_path)
         minor_engine = importlib.util.module_from_spec(spec)
+        _sys.modules["solo_minor_engine_reference"] = minor_engine
         spec.loader.exec_module(minor_engine)
     except Exception:
+        _sys.modules.pop("solo_minor_engine_reference", None)
         return
 
     seen = {label for label, _scale, _prog in PROGRESSIONS}
